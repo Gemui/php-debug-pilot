@@ -1,6 +1,26 @@
-vendor
+
+# Composer
+vendor/
 composer.lock
-.vscode
-.idea
+
+# IDEs
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Testing / Code Coverage
 .phpunit.result.cache
-.phpunit.cache/test-results
+.phpunit.cache/
+build/
+coverage/
+.php-cs-fixer.cache
+
+# Environment
+.env
+.env.local
+.env.*.local
+.DS_Store
+
+# Logs
+*.log
