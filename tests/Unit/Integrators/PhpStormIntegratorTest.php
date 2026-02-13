@@ -63,7 +63,21 @@ final class PhpStormIntegratorTest extends TestCase
         $this->assertStringContainsString('PhpRemoteDebugConfigurationType', $xml);
         $this->assertStringContainsString('Debug Pilot — Xdebug', $xml);
         $this->assertStringContainsString('PHPSTORM', $xml);
+        $this->assertStringContainsString('DebugPilot', $xml);
+    }
+
+    public function testGenerateConfigCreatesServerDefinition(): void
+    {
+        $debugger = $this->createMockDebugger('xdebug');
+
+        $this->integrator->generateConfig($debugger, $this->tmpDir);
+
+        $phpXml = $this->tmpDir . '/.idea/php.xml';
+        $this->assertFileExists($phpXml);
+
+        $xml = file_get_contents($phpXml);
         $this->assertStringContainsString('/var/www/html', $xml);
+        $this->assertStringContainsString('DebugPilot', $xml);
     }
 
     public function testGenerateConfigCreatesValidXml(): void

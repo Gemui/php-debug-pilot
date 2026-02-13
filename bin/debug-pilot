@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use App\Commands\InstallCommand;
 use App\Commands\SetupCommand;
 use App\DriverManager;
 use App\Drivers\PcovDriver;
@@ -20,6 +21,7 @@ use App\Integrators\PhpStormIntegrator;
 use App\Integrators\SublimeIntegrator;
 use App\Integrators\VsCodeIntegrator;
 use App\Support\EnvironmentDetector;
+use App\Support\ExtensionInstaller;
 use App\Support\InstallationAdvisor;
 use Symfony\Component\Console\Application;
 
@@ -27,8 +29,9 @@ use Symfony\Component\Console\Application;
 //  Bootstrap
 // ---------------------------------------------------------------
 
-$env     = new EnvironmentDetector();
+$env = new EnvironmentDetector();
 $advisor = new InstallationAdvisor($env);
+$installer = new ExtensionInstaller($env, $advisor);
 
 // ---------------------------------------------------------------
 //  Register drivers & integrators
@@ -51,7 +54,8 @@ $manager
 
 $app = new Application('PHP Debug Pilot', '1.0.0');
 
-$app->add(new SetupCommand($manager, $env, $advisor));
+$app->add(new SetupCommand($manager, $env, $advisor, $installer));
+$app->add(new InstallCommand($installer, $advisor, $env));
 $app->setDefaultCommand('setup', true);
 
 $app->run();

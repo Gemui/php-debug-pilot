@@ -9,6 +9,7 @@ use App\Contracts\DebuggerDriver;
 use App\Contracts\IdeIntegrator;
 use App\DriverManager;
 use App\Support\EnvironmentDetector;
+use App\Support\ExtensionInstaller;
 use App\Support\InstallationAdvisor;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,6 +34,7 @@ final class SetupCommand extends Command
         private readonly DriverManager $driverManager,
         private readonly EnvironmentDetector $env,
         private readonly InstallationAdvisor $advisor,
+        private readonly ExtensionInstaller $installer,
     ) {
         parent::__construct('setup');
     }
@@ -68,15 +70,35 @@ final class SetupCommand extends Command
             return Command::FAILURE;
         }
 
-        // Check if installed
+        // Check if installed — offer to install automatically
+        $justInstalled = false;
         if (!$debugger->isInstalled()) {
             $io->warning("The '{$debugger->getName()}' extension is not installed.");
-            $io->block($this->advisor->getInstallInstructions($debugger->getName()), null, 'fg=yellow');
 
-            $proceed = $io->confirm('Continue anyway? (configuration will be written but may not take effect)', false);
-            if (!$proceed) {
-                $io->info('Setup cancelled. Install the extension first, then re-run.');
-                return Command::SUCCESS;
+            if ($this->installer->canAutoInstall()) {
+                $install = $io->confirm('Would you like to install it now?', true);
+                if ($install) {
+                    $io->text('Running: <info>' . $this->advisor->getInstallCommand($debugger->getName()) . '</info>');
+                    $result = $this->installer->install($debugger->getName(), function (string $line) use ($io): void {
+                        $io->writeln("  │ {$line}");
+                    });
+
+                    if ($result->success) {
+                        $io->success("✅ {$debugger->getName()} installed successfully.");
+                        $justInstalled = true;
+                    } else {
+                        $io->error("❌ Installation failed (exit {$result->exitCode}). Continuing with configuration anyway.");
+                    }
+                }
+            } else {
+                // Docker / Windows — show instructions only
+                $io->block($this->advisor->getInstallInstructions($debugger->getName()), null, 'fg=yellow');
+
+                $proceed = $io->confirm('Continue anyway? (configuration will be written but may not take effect)', false);
+                if (!$proceed) {
+                    $io->info('Setup cancelled. Install the extension first, then re-run.');
+                    return Command::SUCCESS;
+                }
             }
         }
 
@@ -117,18 +139,35 @@ final class SetupCommand extends Command
         //  5. Health-check
         // ---------------------------------------------------------------
         $io->section('Running health-check…');
-        $result = $debugger->verify();
 
-        foreach ($result->messages as $msg) {
-            $io->writeln("  {$msg}");
-        }
-
-        if ($result->passed) {
+        if ($justInstalled) {
+            // The extension was just installed — the current PHP process
+            // cannot reload it, so runtime checks will always fail.
             $io->newLine();
-            $io->success('🎉 All done! Your debug environment is ready.');
+            $io->success([
+                '🎉 All done! Configuration files have been written.',
+                '',
+                "⚠️  {$debugger->getName()} was just installed and requires a PHP restart.",
+                'Please restart your PHP process (php-fpm, Apache, or terminal) and then run:',
+                '',
+                '    php bin/debug-pilot',
+                '',
+                'to verify your setup with a full health-check.',
+            ]);
         } else {
-            $io->newLine();
-            $io->warning('Setup completed with warnings. Review the messages above.');
+            $result = $debugger->verify();
+
+            foreach ($result->messages as $msg) {
+                $io->writeln("  {$msg}");
+            }
+
+            if ($result->passed) {
+                $io->newLine();
+                $io->success('🎉 All done! Your debug environment is ready.');
+            } else {
+                $io->newLine();
+                $io->warning('Setup completed with warnings. Review the messages above.');
+            }
         }
 
         return Command::SUCCESS;

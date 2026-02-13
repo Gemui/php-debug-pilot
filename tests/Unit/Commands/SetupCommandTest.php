@@ -10,6 +10,7 @@ use App\Contracts\IdeIntegrator;
 use App\DriverManager;
 use App\HealthCheckResult;
 use App\Support\EnvironmentDetector;
+use App\Support\ExtensionInstaller;
 use App\Support\InstallationAdvisor;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
@@ -20,6 +21,7 @@ final class SetupCommandTest extends TestCase
     private DriverManager $manager;
     private EnvironmentDetector $env;
     private InstallationAdvisor $advisor;
+    private ExtensionInstaller $installer;
     private string $tmpDir;
     private string $tmpIni;
 
@@ -27,6 +29,7 @@ final class SetupCommandTest extends TestCase
     {
         $this->env = new EnvironmentDetector();
         $this->advisor = new InstallationAdvisor($this->env);
+        $this->installer = new ExtensionInstaller($this->env, $this->advisor);
         $this->manager = new DriverManager();
 
         $this->tmpDir = sys_get_temp_dir() . '/setup_cmd_test_' . uniqid();
@@ -89,7 +92,8 @@ final class SetupCommandTest extends TestCase
 
         $tester = $this->createCommandTester();
 
-        // Answer "no" to "Continue anyway?"
+        // On macOS/Linux canAutoInstall() returns true, so it asks "Would you like to install it now?"
+        // Answer "no" to skip install, then it continues to configure
         $tester->setInputs(['no']);
 
         $tester->execute([
@@ -157,7 +161,7 @@ final class SetupCommandTest extends TestCase
 
     private function createCommand(): SetupCommand
     {
-        return new SetupCommand($this->manager, $this->env, $this->advisor);
+        return new SetupCommand($this->manager, $this->env, $this->advisor, $this->installer);
     }
 
     private function createCommandTester(): CommandTester
