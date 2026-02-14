@@ -4,35 +4,32 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Commands;
 
-use App\Commands\ToggleCommand;
 use App\Contracts\DebuggerDriver;
 use App\DriverManager;
 use App\Support\EnvironmentDetector;
 use App\Support\ExtensionInstaller;
 use App\Support\InstallationAdvisor;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Tester\CommandTester;
+use Tests\TestCase;
 
 final class ToggleCommandTest extends TestCase
 {
+    private DriverManager $manager;
     private EnvironmentDetector $env;
     private InstallationAdvisor $advisor;
     private ExtensionInstaller $installer;
 
     protected function setUp(): void
     {
+        parent::setUp();
+
         $this->env = new EnvironmentDetector();
         $this->advisor = new InstallationAdvisor($this->env);
         $this->installer = new ExtensionInstaller($this->env, $this->advisor);
-    }
+        $this->manager = new DriverManager();
 
-    public function testCommandIsRegisteredWithCorrectName(): void
-    {
-        $manager = new DriverManager();
-        $command = new ToggleCommand($manager, $this->installer, $this->advisor);
-
-        $this->assertSame('toggle', $command->getName());
+        $this->app->instance(DriverManager::class, $this->manager);
+        $this->app->instance(ExtensionInstaller::class, $this->installer);
+        $this->app->instance(InstallationAdvisor::class, $this->advisor);
     }
 
     public function testCommandEnablesDisabledButInstalledExtension(): void
@@ -43,16 +40,11 @@ final class ToggleCommandTest extends TestCase
         $driver->method('isInstalled')->willReturn(true);
         $driver->expects($this->once())->method('setEnabled')->with(true)->willReturn(true);
 
-        $manager = new DriverManager();
-        $manager->registerDebugger($driver);
+        $this->manager->registerDebugger($driver);
 
-        $tester = $this->createCommandTester($manager);
-        $tester->execute(['extension' => 'xdebug']);
-
-        $output = $tester->getDisplay();
-
-        $this->assertSame(0, $tester->getStatusCode());
-        $this->assertStringContainsString('enabled', $output);
+        $this->artisan('toggle', ['extension' => 'xdebug'])
+            ->expectsOutputToContain('enabled')
+            ->assertSuccessful();
     }
 
     public function testCommandDisablesEnabledExtension(): void
@@ -63,16 +55,11 @@ final class ToggleCommandTest extends TestCase
         $driver->method('isInstalled')->willReturn(true);
         $driver->expects($this->once())->method('setEnabled')->with(false)->willReturn(true);
 
-        $manager = new DriverManager();
-        $manager->registerDebugger($driver);
+        $this->manager->registerDebugger($driver);
 
-        $tester = $this->createCommandTester($manager);
-        $tester->execute(['extension' => 'xdebug']);
-
-        $output = $tester->getDisplay();
-
-        $this->assertSame(0, $tester->getStatusCode());
-        $this->assertStringContainsString('disabled', $output);
+        $this->artisan('toggle', ['extension' => 'xdebug'])
+            ->expectsOutputToContain('disabled')
+            ->assertSuccessful();
     }
 
     public function testCommandBlocksEnableWhenNotInstalledAndUserDeclinesInstall(): void
@@ -81,29 +68,21 @@ final class ToggleCommandTest extends TestCase
         $driver->method('getName')->willReturn('xdebug');
         $driver->method('isEnabled')->willReturn(false);
         $driver->method('isInstalled')->willReturn(false);
+        $driver->method('hasIniDirective')->willReturn(false);
         $driver->expects($this->never())->method('setEnabled');
 
-        $manager = new DriverManager();
-        $manager->registerDebugger($driver);
+        $this->manager->registerDebugger($driver);
 
-        $tester = $this->createCommandTester($manager);
-        $tester->setInputs(['no']);
-        $tester->execute(['extension' => 'xdebug']);
-
-        $output = preg_replace('/\s+/', ' ', $tester->getDisplay());
-
-        $this->assertSame(0, $tester->getStatusCode());
-        $this->assertStringContainsString('not installed', $output);
+        $this->artisan('toggle', ['extension' => 'xdebug'])
+            ->expectsOutputToContain('not installed')
+            ->expectsConfirmation('Would you like to install it now?', 'no')
+            ->assertSuccessful();
     }
 
     public function testCommandFailsForUnknownExtension(): void
     {
-        $manager = new DriverManager();
-
-        $tester = $this->createCommandTester($manager);
-        $tester->execute(['extension' => 'nonexistent']);
-
-        $this->assertSame(1, $tester->getStatusCode());
+        $this->artisan('toggle', ['extension' => 'nonexistent'])
+            ->assertFailed();
     }
 
     public function testCommandShowsErrorWhenToggleFails(): void
@@ -114,16 +93,11 @@ final class ToggleCommandTest extends TestCase
         $driver->method('isInstalled')->willReturn(true);
         $driver->method('setEnabled')->willThrowException(new \RuntimeException('Permission denied'));
 
-        $manager = new DriverManager();
-        $manager->registerDebugger($driver);
+        $this->manager->registerDebugger($driver);
 
-        $tester = $this->createCommandTester($manager);
-        $tester->execute(['extension' => 'xdebug']);
-
-        $output = preg_replace('/\s+/', ' ', $tester->getDisplay());
-
-        $this->assertSame(1, $tester->getStatusCode());
-        $this->assertStringContainsString('Permission denied', $output);
+        $this->artisan('toggle', ['extension' => 'xdebug'])
+            ->expectsOutputToContain('Permission denied')
+            ->assertFailed();
     }
 
     public function testCommandRemindsUserToRestartPhp(): void
@@ -134,28 +108,10 @@ final class ToggleCommandTest extends TestCase
         $driver->method('isInstalled')->willReturn(true);
         $driver->method('setEnabled')->willReturn(true);
 
-        $manager = new DriverManager();
-        $manager->registerDebugger($driver);
+        $this->manager->registerDebugger($driver);
 
-        $tester = $this->createCommandTester($manager);
-        $tester->execute(['extension' => 'xdebug']);
-
-        $output = $tester->getDisplay();
-
-        $this->assertStringContainsString('restart', $output);
-    }
-
-    // -----------------------------------------------------------------
-    //  Helpers
-    // -----------------------------------------------------------------
-
-    private function createCommandTester(DriverManager $manager): CommandTester
-    {
-        $command = new ToggleCommand($manager, $this->installer, $this->advisor);
-
-        $app = new Application('test', '0.0.0');
-        $app->add($command);
-
-        return new CommandTester($app->find('toggle'));
+        $this->artisan('toggle', ['extension' => 'xdebug'])
+            ->expectsOutputToContain('restart')
+            ->assertSuccessful();
     }
 }

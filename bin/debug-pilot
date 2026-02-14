@@ -6,60 +6,32 @@ declare(strict_types=1);
 /**
  * PHP Debug Pilot — CLI Entry Point
  *
- * Bootstraps the application, registers all drivers and integrators
- * via the DriverManager, and runs the Symfony Console application.
+ * Bootstraps the Laravel Zero application and runs it.
  */
 
-require __DIR__ . '/../vendor/autoload.php';
+$autoloadFile = __DIR__ . '/../vendor/autoload.php';
 
-use App\Commands\InstallCommand;
-use App\Commands\SetupCommand;
-use App\Commands\StatusCommand;
-use App\Commands\ToggleCommand;
-use App\DriverManager;
-use App\Drivers\PcovDriver;
-use App\Drivers\XdebugDriver;
-use App\Integrators\PhpStormIntegrator;
-use App\Integrators\SublimeIntegrator;
-use App\Integrators\VsCodeIntegrator;
-use App\Support\EnvironmentDetector;
-use App\Support\ExtensionInstaller;
-use App\Support\InstallationAdvisor;
-use Symfony\Component\Console\Application;
+if (!file_exists($autoloadFile)) {
+    // Check if installed as a dependency
+    $autoloadFile = __DIR__ . '/../../../autoload.php';
+}
 
-// ---------------------------------------------------------------
-//  Bootstrap
-// ---------------------------------------------------------------
+if (!file_exists($autoloadFile)) {
+    fwrite(STDERR, "Error: Vendor autoload.php not found. Run 'composer install'.\n");
+    exit(1);
+}
 
-$env = new EnvironmentDetector();
-$advisor = new InstallationAdvisor($env);
-$installer = new ExtensionInstaller($env, $advisor);
+require $autoloadFile;
 
-// ---------------------------------------------------------------
-//  Register drivers & integrators
-// ---------------------------------------------------------------
+$app = require_once __DIR__ . '/../bootstrap/app.php';
 
-$manager = new DriverManager();
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 
-$manager
-    ->registerDebugger(new XdebugDriver($env))
-    ->registerDebugger(new PcovDriver($env));
+$status = $kernel->handle(
+    $input = new Symfony\Component\Console\Input\ArgvInput,
+    new Symfony\Component\Console\Output\ConsoleOutput
+);
 
-$manager
-    ->registerIntegrator(new VsCodeIntegrator())
-    ->registerIntegrator(new PhpStormIntegrator())
-    ->registerIntegrator(new SublimeIntegrator());
+$kernel->terminate($input, $status);
 
-// ---------------------------------------------------------------
-//  Run
-// ---------------------------------------------------------------
-
-$app = new Application('PHP Debug Pilot', '1.0.0');
-
-$app->add(new SetupCommand($manager, $env, $advisor, $installer));
-$app->add(new InstallCommand($installer, $advisor, $env));
-$app->add(new StatusCommand($manager));
-$app->add(new ToggleCommand($manager, $installer, $advisor));
-$app->setDefaultCommand('setup');
-
-$app->run();
+exit($status);

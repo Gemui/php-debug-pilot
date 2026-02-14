@@ -2,23 +2,42 @@
     "name": "ahmedgamal/php-debug-pilot",
     "description": "An extensible CLI platform to manage PHP runtime debug configurations.",
     "type": "project",
+    "keywords": [
+        "xdebug",
+        "pcov",
+        "debug",
+        "php",
+        "cli",
+        "devtools",
+        "laravel-zero"
+    ],
     "license": "MIT",
     "minimum-stability": "stable",
+    "prefer-stable": true,
     "require": {
         "php": ">=8.2",
-        "symfony/console": "^7.0"
+        "laravel-zero/framework": "^11.0"
     },
     "require-dev": {
+        "mockery/mockery": "^1.6",
         "phpunit/phpunit": "^11.0"
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/App/"
+            "App\\": "app/"
         }
     },
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
         }
     },
     "bin": [

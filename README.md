@@ -2,62 +2,96 @@
 
 **Zero-Configuration PHP Debugging Setup.**
 
-PHP Debug Pilot is a CLI tool that automatically detects your environment, configures Xdebug or Pcov, and generates ready-to-use launch configurations for your favorite IDE. Stop wrestling with `php.ini` and port mappings — just fly.
+PHP Debug Pilot is a CLI tool that automatically detects your environment, install, configures Xdebug or Pcov, and generates ready-to-use launch configurations for your favorite IDE. Stop wrestling with `php.ini` and port mappings — just fly.
 
-## Features
+---
 
-- **Environment Detection**: Automatically detects OS (macOS, Linux, Windows), Docker containers, and `php.ini` location.
-- **Smart Configuration**:
+## ✨ Features
+
+- **Environment Detection** — Automatically detects OS (macOS, Linux, Windows), Docker containers, and `php.ini` location.
+- **Smart Configuration**
   - Configures **Xdebug** for step debugging (mode `debug`, auto-client-host).
   - Configures **Pcov** for fast coverage.
   - Handles conflicts (e.g., disables Xdebug coverage when Pcov is active).
   - Idempotent — runs safely multiple times without duplicating config blocks.
-- **Extension Management**:
-  - **Check Status**: View installed/enabled status of Xdebug and Pcov clearly.
-  - **Toggle**: Enable or disable extensions with a single command.
-  - **Auto-Install**: Smartly detects missing extensions and offers to install them for you (macOS/Linux).
-- **IDE Integration**: Generates project-specific config files for:
+- **Extension Management**
+  - **Check Status** — View installed/enabled status of Xdebug and Pcov at a glance.
+  - **Toggle** — Enable or disable extensions with a single command.
+  - **Auto-Install** — Detects missing extensions and offers to install them for you (macOS/Linux).
+- **IDE Integration** — Generates project-specific config files for:
   - **VS Code** (`.vscode/launch.json`)
   - **PhpStorm** (`.idea/runConfigurations/XML`)
   - **Sublime Text** (`*.sublime-project`)
-- **Health Checks**: Verifies your installation and reports actionable warnings (e.g., missing extensions, wrong modes).
+- **Health Checks** — Verifies your installation and reports actionable warnings (e.g., missing extensions, wrong modes).
 
-## Installation
+---
+
+## 📦 Installation
 
 ### Requirements
-- PHP 8.1 or higher
+- PHP 8.2 or higher
 - Composer
 
-### Setup
+### Install Globally (Recommended)
+
+Install once and use `debug-pilot` from anywhere:
 
 ```bash
-git clone https://github.com/yourusername/php-debug-pilot.git
-cd php-debug-pilot
-composer install
+composer global require gemui/php-debug-pilot
 ```
 
-> **Note**: This tool configures existing PHP extensions. Ensure you have `xdebug` or `pcov` installed (e.g., via `pecl`, `apt`, `brew`, or Dockerfile), or let the tool help you install them.
+> Make sure Composer's global `vendor/bin` directory is in your system `PATH`.
+> Typically this is `~/.composer/vendor/bin` or `~/.config/composer/vendor/bin`.
+>
+> Add it to your shell profile if you haven't already:
+> ```bash
+> export PATH="$HOME/.composer/vendor/bin:$PATH"
+> ```
 
-## Usage
-
-### Interactive Setup
-Run the setup wizard to detect checks, configure extensions, and generate IDE files:
+After installing globally, you can use `debug-pilot` directly:
 
 ```bash
-php bin/debug-pilot
+debug-pilot              # Interactive setup wizard
+debug-pilot status       # Extension status table
+debug-pilot toggle xdebug
+```
+
+### Install Per-Project
+
+Or add it as a dev dependency to a specific project:
+
+```bash
+composer require --dev ahmedgamal/php-debug-pilot
+```
+
+Then use it via Composer's local bin:
+
+```bash
+./vendor/bin/debug-pilot
+```
+
+---
+
+## 🚀 Usage
+
+### Interactive Setup
+Run the setup wizard to configure extensions and generate IDE files:
+
+```bash
+debug-pilot
 ```
 
 The tool will:
-1.  Detect your environment.
-2.  Ask which debugger you want to configure (Xdebug / Pcov).
-3.  Ask which IDE you use.
-4.  Write the configuration and verify the setup.
+1. Detect your environment.
+2. Ask which debugger you want to configure (Xdebug / Pcov).
+3. Ask which IDE you use.
+4. Write the configuration and verify the setup.
 
 ### Check Status
 See which extensions are installed and enabled:
 
 ```bash
-php bin/debug-pilot status
+debug-pilot status
 ```
 
 **Output:**
@@ -65,36 +99,36 @@ php bin/debug-pilot status
  ┌─────────┬───────────┬─────────┐
  │ Driver  │ Installed │ Enabled │
  ├─────────┼───────────┼─────────┤
- │ xdebug  │ ✅        │ ✅       │
- │ pcov    │ ✅        │ ❌       │
+ │ xdebug  │ ✅         │ ✅       │
+ │ pcov    │ ✅         │ ❌       │
  └─────────┴───────────┴─────────┘
 ```
 
 ### Enable / Disable Extensions
-Toggle extension state quickly without editing `php.ini` manually:
+Toggle extension state without editing `php.ini` manually:
 
 ```bash
 # Enable Xdebug
-php bin/debug-pilot toggle xdebug
+debug-pilot toggle xdebug
 
 # Enable Pcov (and auto-disable Xdebug coverage)
-php bin/debug-pilot toggle pcov
+debug-pilot toggle pcov
 ```
 
-> **Note**: If the extension is not installed, the tool will offer to install it for you automatically (on supported systems).
+> If the extension is not installed, the tool will offer to install it for you automatically (on supported systems).
 
 ### Non-Interactive Setup
-Perfect for CI/CD pipelines or automated setup scripts.
+Perfect for CI/CD pipelines or automated setup scripts:
 
 ```bash
 # Configure Xdebug for VS Code
-php bin/debug-pilot setup --debugger=xdebug --ide=vscode
+debug-pilot setup --debugger=xdebug --ide=vscode
 
 # Configure Pcov for PhpStorm
-php bin/debug-pilot setup --debugger=pcov --ide=phpstorm
+debug-pilot setup --debugger=pcov --ide=phpstorm
 
 # Custom host/port override
-php bin/debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --port=9000
+debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --port=9000
 ```
 
 ### Setup Options
@@ -107,16 +141,20 @@ php bin/debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --po
 | `--host` | Xdebug client host IP | `auto` (detects Docker host or `localhost`) |
 | `--port` | Xdebug client port | `9003` |
 
-## Supported Platforms
+---
+
+## 🖥️ Supported Platforms
 
 - **OS**: macOS, Linux, Windows, Docker Containers.
 - **Debuggers**: Xdebug 3+, Pcov.
 - **IDEs**: VS Code, PhpStorm, Sublime Text 3/4.
 
-## Troubleshooting
+---
+
+## 🔧 Troubleshooting
 
 **"Extension is not installed" warning?**
-Run `php bin/debug-pilot install <extension>` (or `toggle`) and follow the interactive prompts to install it. Or install manually:
+Run `debug-pilot install <extension>` (or `toggle`) and follow the interactive prompts to install it. Or install manually:
 - **macOS**: `pecl install xdebug`
 - **Ubuntu**: `sudo apt install php-xdebug`
 - **Docker**: `RUN pecl install xdebug && docker-php-ext-enable xdebug`
@@ -124,5 +162,11 @@ Run `php bin/debug-pilot install <extension>` (or `toggle`) and follow the inter
 **"Cannot write to php.ini"?**
 Run the tool with `sudo` if your `php.ini` is system-protected:
 ```bash
-sudo php bin/debug-pilot setup
+sudo debug-pilot setup
 ```
+
+---
+
+## 📄 License
+
+MIT

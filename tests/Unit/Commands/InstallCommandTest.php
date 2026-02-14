@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Commands;
 
-use App\Commands\InstallCommand;
 use App\Support\EnvironmentDetector;
 use App\Support\ExtensionInstaller;
 use App\Support\InstallationAdvisor;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Tester\CommandTester;
+use Tests\TestCase;
 
 final class InstallCommandTest extends TestCase
 {
@@ -20,25 +17,22 @@ final class InstallCommandTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
+
         $this->env = new EnvironmentDetector();
         $this->advisor = new InstallationAdvisor($this->env);
         $this->installer = new ExtensionInstaller($this->env, $this->advisor);
-    }
 
-    public function testCommandIsRegisteredWithCorrectName(): void
-    {
-        $command = new InstallCommand($this->installer, $this->advisor, $this->env);
-        $this->assertSame('install', $command->getName());
+        $this->app->instance(ExtensionInstaller::class, $this->installer);
+        $this->app->instance(InstallationAdvisor::class, $this->advisor);
+        $this->app->instance(EnvironmentDetector::class, $this->env);
     }
 
     public function testCommandFailsForUnknownExtension(): void
     {
-        $tester = $this->createCommandTester();
-
-        $tester->execute(['extension' => 'foobar']);
-
-        $this->assertSame(1, $tester->getStatusCode());
-        $this->assertStringContainsString('Unknown extension', $tester->getDisplay());
+        $this->artisan('install', ['extension' => 'foobar'])
+            ->expectsOutputToContain('Unknown extension')
+            ->assertFailed();
     }
 
     public function testCommandReportsAlreadyInstalledExtension(): void
@@ -48,13 +42,9 @@ final class InstallCommandTest extends TestCase
             $this->markTestSkipped('Xdebug not loaded — cannot test "already installed" path.');
         }
 
-        $tester = $this->createCommandTester();
-
-        $tester->execute(['extension' => 'xdebug']);
-
-        $output = preg_replace('/\s+/', ' ', $tester->getDisplay());
-        $this->assertStringContainsString('already installed', $output);
-        $this->assertSame(0, $tester->getStatusCode());
+        $this->artisan('install', ['extension' => 'xdebug'])
+            ->expectsOutputToContain('already installed')
+            ->assertSuccessful();
     }
 
     public function testCommandShowsInstallInstructions(): void
@@ -64,25 +54,9 @@ final class InstallCommandTest extends TestCase
             $this->markTestSkipped('Pcov is loaded — cannot test install path.');
         }
 
-        $tester = $this->createCommandTester();
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('install', ['extension' => 'pcov']);
 
-        $tester->execute(['extension' => 'pcov']);
-
-        // We just verify the command completes (install might fail on CI)
-        $this->assertContains($tester->getStatusCode(), [0, 1]);
-    }
-
-    // -----------------------------------------------------------------
-    //  Helpers
-    // -----------------------------------------------------------------
-
-    private function createCommandTester(): CommandTester
-    {
-        $command = new InstallCommand($this->installer, $this->advisor, $this->env);
-
-        $app = new Application('test', '0.0.0');
-        $app->add($command);
-
-        return new CommandTester($app->find('install'));
+        // Install might succeed (0) or fail (1) depending on environment
+        $this->assertContains($exitCode, [0, 1]);
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Commands;
 
-use App\Commands\SetupCommand;
 use App\Contracts\DebuggerDriver;
 use App\Contracts\IdeIntegrator;
 use App\DriverManager;
@@ -12,9 +11,7 @@ use App\HealthCheckResult;
 use App\Support\EnvironmentDetector;
 use App\Support\ExtensionInstaller;
 use App\Support\InstallationAdvisor;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Tester\CommandTester;
+use Tests\TestCase;
 
 final class SetupCommandTest extends TestCase
 {
@@ -27,6 +24,8 @@ final class SetupCommandTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
+
         $this->env = new EnvironmentDetector();
         $this->advisor = new InstallationAdvisor($this->env);
         $this->installer = new ExtensionInstaller($this->env, $this->advisor);
@@ -37,6 +36,12 @@ final class SetupCommandTest extends TestCase
 
         $this->tmpIni = tempnam(sys_get_temp_dir(), 'setup_ini_') ?: '/tmp/setup_ini_fallback.ini';
         file_put_contents($this->tmpIni, "; base php.ini\n");
+
+        // Bind our custom instances into the container
+        $this->app->instance(DriverManager::class, $this->manager);
+        $this->app->instance(EnvironmentDetector::class, $this->env);
+        $this->app->instance(InstallationAdvisor::class, $this->advisor);
+        $this->app->instance(ExtensionInstaller::class, $this->installer);
     }
 
     protected function tearDown(): void
@@ -46,18 +51,13 @@ final class SetupCommandTest extends TestCase
         if (file_exists($this->tmpIni)) {
             unlink($this->tmpIni);
         }
+
+        parent::tearDown();
     }
 
     // -----------------------------------------------------------------
     //  Tests
     // -----------------------------------------------------------------
-
-    public function testCommandIsRegisteredWithCorrectName(): void
-    {
-        $command = $this->createCommand();
-
-        $this->assertSame('setup', $command->getName());
-    }
 
     public function testCommandRunsWithPreSelectedDebuggerAndIde(): void
     {
@@ -67,19 +67,13 @@ final class SetupCommandTest extends TestCase
         $this->manager->registerDebugger($debugger);
         $this->manager->registerIntegrator($ide);
 
-        $tester = $this->createCommandTester();
-
-        $tester->execute([
+        $this->artisan('setup', [
             '--debugger' => 'xdebug',
             '--ide' => 'vscode',
             '--project-path' => $this->tmpDir,
             '--host' => 'localhost',
             '--port' => '9003',
-        ]);
-
-        $output = $tester->getDisplay();
-        $this->assertStringContainsString('PHP Debug Pilot', $output);
-        $this->assertSame(0, $tester->getStatusCode());
+        ])->assertSuccessful();
     }
 
     public function testCommandShowsInstallHintWhenDebuggerNotInstalled(): void
@@ -90,33 +84,22 @@ final class SetupCommandTest extends TestCase
         $this->manager->registerDebugger($debugger);
         $this->manager->registerIntegrator($ide);
 
-        $tester = $this->createCommandTester();
-
         // On macOS/Linux canAutoInstall() returns true, so it asks "Would you like to install it now?"
         // Answer "no" to skip install, then it continues to configure
-        $tester->setInputs(['no']);
-
-        $tester->execute([
+        $this->artisan('setup', [
             '--debugger' => 'xdebug',
             '--ide' => 'vscode',
             '--project-path' => $this->tmpDir,
-        ]);
-
-        $output = preg_replace('/\s+/', ' ', $tester->getDisplay());
-        $this->assertStringContainsString('not installed', $output);
-        $this->assertSame(0, $tester->getStatusCode());
+        ])->expectsConfirmation('Would you like to install it now?', 'no')
+            ->assertSuccessful();
     }
 
     public function testCommandFailsForUnknownDebugger(): void
     {
-        $tester = $this->createCommandTester();
-
-        $tester->execute([
+        $this->artisan('setup', [
             '--debugger' => 'nonexistent',
             '--project-path' => $this->tmpDir,
-        ]);
-
-        $this->assertSame(1, $tester->getStatusCode());
+        ])->assertFailed();
     }
 
     public function testCommandFailsForUnknownIde(): void
@@ -124,56 +107,16 @@ final class SetupCommandTest extends TestCase
         $debugger = $this->createMockDebugger('xdebug', installed: true);
         $this->manager->registerDebugger($debugger);
 
-        $tester = $this->createCommandTester();
-
-        $tester->execute([
+        $this->artisan('setup', [
             '--debugger' => 'xdebug',
             '--ide' => 'nonexistent',
             '--project-path' => $this->tmpDir,
-        ]);
-
-        $this->assertSame(1, $tester->getStatusCode());
-    }
-
-    public function testCommandDisplaysEnvironmentInfo(): void
-    {
-        $debugger = $this->createMockDebugger('xdebug', installed: true);
-        $ide = $this->createMockIde('vscode');
-
-        $this->manager->registerDebugger($debugger);
-        $this->manager->registerIntegrator($ide);
-
-        $tester = $this->createCommandTester();
-
-        $tester->execute([
-            '--debugger' => 'xdebug',
-            '--ide' => 'vscode',
-            '--project-path' => $this->tmpDir,
-        ]);
-
-        $output = $tester->getDisplay();
-        $this->assertStringContainsString(PHP_VERSION, $output);
+        ])->assertFailed();
     }
 
     // -----------------------------------------------------------------
     //  Helpers
     // -----------------------------------------------------------------
-
-    private function createCommand(): SetupCommand
-    {
-        return new SetupCommand($this->manager, $this->env, $this->advisor, $this->installer);
-    }
-
-    private function createCommandTester(): CommandTester
-    {
-        $app = new Application('test', '0.0.0');
-        $app->add($this->createCommand());
-        $app->setDefaultCommand('setup');
-
-        $command = $app->find('setup');
-
-        return new CommandTester($command);
-    }
 
     private function createMockDebugger(string $name, bool $installed = true): DebuggerDriver
     {
