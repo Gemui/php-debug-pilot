@@ -102,7 +102,7 @@ final class SetupCommandTest extends TestCase
             '--project-path' => $this->tmpDir,
         ]);
 
-        $output = $tester->getDisplay();
+        $output = preg_replace('/\s+/', ' ', $tester->getDisplay());
         $this->assertStringContainsString('not installed', $output);
         $this->assertSame(0, $tester->getStatusCode());
     }
@@ -168,7 +168,7 @@ final class SetupCommandTest extends TestCase
     {
         $app = new Application('test', '0.0.0');
         $app->add($this->createCommand());
-        $app->setDefaultCommand('setup', true);
+        $app->setDefaultCommand('setup');
 
         $command = $app->find('setup');
 

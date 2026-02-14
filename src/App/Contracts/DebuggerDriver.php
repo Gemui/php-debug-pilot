@@ -38,4 +38,25 @@ interface DebuggerDriver
      * Run a health-check to verify the debugger is correctly configured.
      */
     public function verify(): HealthCheckResult;
+
+    /**
+     * Check whether the extension is currently enabled in php.ini.
+     */
+    public function isEnabled(): bool;
+
+    /**
+     * Enable or disable the extension by editing php.ini.
+     *
+     * @param bool $enabled True to enable, false to disable.
+     * @return bool True if the change was successfully written.
+     */
+    public function setEnabled(bool $enabled): bool;
+
+    /**
+     * Check if the extension has a directive line in php.ini (even if commented out).
+     *
+     * This indicates the extension binary is available on the system,
+     * even if not currently loaded in this PHP process.
+     */
+    public function hasIniDirective(): bool;
 }

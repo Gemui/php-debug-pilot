@@ -52,7 +52,7 @@ final class InstallCommandTest extends TestCase
 
         $tester->execute(['extension' => 'xdebug']);
 
-        $output = $tester->getDisplay();
+        $output = preg_replace('/\s+/', ' ', $tester->getDisplay());
         $this->assertStringContainsString('already installed', $output);
         $this->assertSame(0, $tester->getStatusCode());
     }

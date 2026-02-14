@@ -14,6 +14,8 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use App\Commands\InstallCommand;
 use App\Commands\SetupCommand;
+use App\Commands\StatusCommand;
+use App\Commands\ToggleCommand;
 use App\DriverManager;
 use App\Drivers\PcovDriver;
 use App\Drivers\XdebugDriver;
@@ -56,6 +58,8 @@ $app = new Application('PHP Debug Pilot', '1.0.0');
 
 $app->add(new SetupCommand($manager, $env, $advisor, $installer));
 $app->add(new InstallCommand($installer, $advisor, $env));
-$app->setDefaultCommand('setup', true);
+$app->add(new StatusCommand($manager));
+$app->add(new ToggleCommand($manager, $installer, $advisor));
+$app->setDefaultCommand('setup');
 
 $app->run();

@@ -8,6 +8,7 @@ use App\Config;
 use App\Contracts\DebuggerDriver;
 use App\HealthCheckResult;
 use App\Support\EnvironmentDetector;
+use App\Support\IniEditor;
 use RuntimeException;
 
 /**
@@ -18,8 +19,12 @@ use RuntimeException;
  */
 final class XdebugDriver implements DebuggerDriver
 {
+    /** Regex pattern that matches the zend_extension directive for xdebug. */
+    private const EXTENSION_PATTERN = 'zend_extension\s*=\s*["\']?(?:.*[\/\\\\])?xdebug(?:\.so|\.dll)?["\']?';
+
     public function __construct(
         private readonly EnvironmentDetector $env,
+        private readonly IniEditor $iniEditor = new IniEditor(),
     ) {
     }
 
@@ -31,6 +36,71 @@ final class XdebugDriver implements DebuggerDriver
     public function isInstalled(): bool
     {
         return $this->env->isExtensionLoaded('xdebug');
+    }
+
+    public function isEnabled(): bool
+    {
+        $iniPath = $this->env->findPhpIniPath();
+        if ($iniPath === null || !is_file($iniPath)) {
+            return false;
+        }
+
+        $content = file_get_contents($iniPath);
+        if ($content === false) {
+            return false;
+        }
+
+        return $this->iniEditor->isLineEnabled($content, self::EXTENSION_PATTERN);
+    }
+
+    public function hasIniDirective(): bool
+    {
+        $iniPath = $this->env->findPhpIniPath();
+        if ($iniPath === null || !is_file($iniPath)) {
+            return false;
+        }
+
+        $content = file_get_contents($iniPath);
+        if ($content === false) {
+            return false;
+        }
+
+        return $this->iniEditor->hasLine($content, self::EXTENSION_PATTERN);
+    }
+
+    public function setEnabled(bool $enabled): bool
+    {
+        $iniPath = $this->env->findPhpIniPath();
+        if ($iniPath === null) {
+            throw new RuntimeException('Could not auto-detect php.ini path.');
+        }
+
+        if (!is_writable($iniPath)) {
+            throw new RuntimeException(
+                sprintf('Cannot write to php.ini at "%s". Check file permissions.', $iniPath)
+            );
+        }
+
+        $content = file_get_contents($iniPath);
+        if ($content === false) {
+            throw new RuntimeException(sprintf('Failed to read php.ini at "%s".', $iniPath));
+        }
+
+        if ($enabled) {
+            if ($this->iniEditor->hasLine($content, self::EXTENSION_PATTERN)) {
+                $content = $this->iniEditor->uncommentLine($content, self::EXTENSION_PATTERN);
+            } else {
+                $content = $this->iniEditor->appendLine($content, 'zend_extension=xdebug');
+            }
+        } else {
+            $content = $this->iniEditor->commentLine($content, self::EXTENSION_PATTERN);
+        }
+
+        if (file_put_contents($iniPath, $content) === false) {
+            throw new RuntimeException(sprintf('Failed to write to php.ini at "%s".', $iniPath));
+        }
+
+        return true;
     }
 
     /**
