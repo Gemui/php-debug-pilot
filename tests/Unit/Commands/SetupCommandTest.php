@@ -78,7 +78,7 @@ final class SetupCommandTest extends TestCase
 
     public function testCommandShowsInstallHintWhenDebuggerNotInstalled(): void
     {
-        $debugger = $this->createMockDebugger('xdebug', installed: false);
+        $debugger = $this->createMockDebugger('xdebug', installed: false, hasIniDirective: false);
         $ide = $this->createMockIde('vscode');
 
         $this->manager->registerDebugger($debugger);
@@ -91,6 +91,30 @@ final class SetupCommandTest extends TestCase
             '--ide' => 'vscode',
             '--project-path' => $this->tmpDir,
         ])->expectsConfirmation('Would you like to install it now?', 'no')
+            ->assertSuccessful();
+    }
+
+    public function testCommandEnablesDisabledExtensionInsteadOfInstalling(): void
+    {
+        $debugger = $this->createMockDebugger('xdebug', installed: false, hasIniDirective: true);
+
+        // Should NOT call verify() because restart is required
+        $debugger->expects($this->never())->method('verify');
+
+        $ide = $this->createMockIde('vscode');
+
+        $this->manager->registerDebugger($debugger);
+        $this->manager->registerIntegrator($ide);
+
+        $this->artisan('setup', [
+            '--debugger' => 'xdebug',
+            '--ide' => 'vscode',
+            '--project-path' => $this->tmpDir,
+            '--host' => 'localhost',
+            '--port' => '9003',
+        ])->expectsOutputToContain('disabled')
+            ->expectsConfirmation('Would you like to enable it now?', 'yes')
+            ->expectsOutputToContain('requires a PHP restart')
             ->assertSuccessful();
     }
 
@@ -118,12 +142,14 @@ final class SetupCommandTest extends TestCase
     //  Helpers
     // -----------------------------------------------------------------
 
-    private function createMockDebugger(string $name, bool $installed = true): DebuggerDriver
+    private function createMockDebugger(string $name, bool $installed = true, bool $hasIniDirective = true): DebuggerDriver
     {
         $mock = $this->createMock(DebuggerDriver::class);
         $mock->method('getName')->willReturn($name);
         $mock->method('isInstalled')->willReturn($installed);
+        $mock->method('hasIniDirective')->willReturn($hasIniDirective);
         $mock->method('configure')->willReturn(true);
+        $mock->method('setEnabled')->willReturn(true);
         $mock->method('verify')->willReturn(
             HealthCheckResult::pass($name, ['✅ All good.'])
         );

@@ -64,8 +64,8 @@ final class SetupCommand extends Command
         }
 
         // Check if installed — offer to install automatically
-        $justInstalled = false;
-        if (!$debugger->isInstalled()) {
+        $requiresRestart = false;
+        if (!$debugger->isInstalled() && !$debugger->hasIniDirective()) {
             $this->warn("The '{$debugger->getName()}' extension is not installed.");
 
             if ($installer->canAutoInstall()) {
@@ -78,7 +78,7 @@ final class SetupCommand extends Command
 
                     if ($result->success) {
                         $this->info("✅ {$debugger->getName()} installed successfully.");
-                        $justInstalled = true;
+                        $requiresRestart = true;
                     } else {
                         $this->error("❌ Installation failed (exit {$result->exitCode}). Continuing with configuration anyway.");
                     }
@@ -91,6 +91,22 @@ final class SetupCommand extends Command
                 if (!$proceed) {
                     $this->info('Setup cancelled. Install the extension first, then re-run.');
                     return self::SUCCESS;
+                }
+            }
+        }
+
+        // Extension is installed but disabled — offer to enable it
+        if (!$debugger->isInstalled() && $debugger->hasIniDirective()) {
+            $this->warn("The '{$debugger->getName()}' extension is disabled.");
+
+            $enable = $this->confirm('Would you like to enable it now?', true);
+            if ($enable) {
+                try {
+                    $debugger->setEnabled(true);
+                    $this->info("✅ {$debugger->getName()} enabled.");
+                    $requiresRestart = true;
+                } catch (\Throwable $e) {
+                    $this->error("❌ Failed to enable {$debugger->getName()}: {$e->getMessage()}");
                 }
             }
         }
@@ -136,11 +152,11 @@ final class SetupCommand extends Command
         $this->newLine();
         $this->info('Running health-check…');
 
-        if ($justInstalled) {
+        if ($requiresRestart) {
             $this->newLine();
             $this->info('🎉 All done! Configuration files have been written.');
             $this->newLine();
-            $this->warn("⚠️  {$debugger->getName()} was just installed and requires a PHP restart.");
+            $this->warn("⚠️  {$debugger->getName()} was just installed/enabled and requires a PHP restart.");
             $this->line('Please restart your PHP process (php-fpm, Apache, or terminal) and then run:');
             $this->newLine();
             $this->line('    php bin/debug-pilot');
