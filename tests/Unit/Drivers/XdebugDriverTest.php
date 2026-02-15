@@ -64,11 +64,32 @@ final class XdebugDriverTest extends TestCase
 
         $content = file_get_contents($this->tmpIni);
         $this->assertStringContainsString('xdebug.mode', $content);
+        $this->assertStringContainsString('xdebug.mode                = debug', $content);
         $this->assertStringContainsString('xdebug.client_host         = 192.168.1.100', $content);
         $this->assertStringContainsString('xdebug.client_port         = 9003', $content);
         $this->assertStringContainsString('xdebug.idekey              = VSCODE', $content);
         $this->assertStringContainsString('xdebug.start_with_request  = yes', $content);
         $this->assertStringContainsString('; existing content', $content);
+    }
+
+    public function testConfigureWritesCustomXdebugMode(): void
+    {
+        file_put_contents($this->tmpIni, "; existing content\n");
+
+        $config = new Config(
+            phpIniPath: $this->tmpIni,
+            clientHost: 'localhost',
+            clientPort: 9003,
+            ideKey: 'PHPSTORM',
+            xdebugMode: 'debug,develop,coverage',
+        );
+
+        $result = $this->driver->configure($config);
+
+        $this->assertTrue($result);
+
+        $content = file_get_contents($this->tmpIni);
+        $this->assertStringContainsString('xdebug.mode                = debug,develop,coverage', $content);
     }
 
     public function testConfigureIsIdempotent(): void

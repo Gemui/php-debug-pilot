@@ -14,6 +14,7 @@ use App\Support\InstallationAdvisor;
 use LaravelZero\Framework\Commands\Command;
 
 use function Laravel\Prompts\select;
+use function Laravel\Prompts\multiselect;
 
 /**
  * Interactive CLI command that configures a PHP debugger and
@@ -33,7 +34,8 @@ final class SetupCommand extends Command
         {--d|debugger= : Debugger name (skip prompt)}
         {--i|ide= : IDE name (skip prompt)}
         {--host=auto : Override client host}
-        {--port=9003 : Override client port}';
+        {--port=9003 : Override client port}
+        {--xdebug-mode= : Xdebug modes, comma-separated (debug,develop,coverage,profile,trace)}';
 
     protected $description = 'Interactive setup wizard for PHP debugging';
 
@@ -64,33 +66,50 @@ final class SetupCommand extends Command
         }
 
         // Check if installed — offer to install automatically
-        $justInstalled = false;
-        if (!$debugger->isInstalled()) {
+        $requiresRestart = false;
+        if (!$debugger->isInstalled() && !$debugger->hasIniDirective()) {
             $this->warn("The '{$debugger->getName()}' extension is not installed.");
 
             if ($installer->canAutoInstall()) {
                 $install = $this->confirm('Would you like to install it now?', true);
-                if ($install) {
-                    $this->line('Running: <info>' . $advisor->getInstallCommand($debugger->getName()) . '</info>');
-                    $result = $installer->install($debugger->getName(), function (string $line): void {
-                        $this->line("  │ {$line}");
-                    });
+                if (!$install) {
+                    $this->info('Setup cancelled. Install the extension first, then re-run.');
+                    return self::FAILURE;
+                }
 
-                    if ($result->success) {
-                        $this->info("✅ {$debugger->getName()} installed successfully.");
-                        $justInstalled = true;
-                    } else {
-                        $this->error("❌ Installation failed (exit {$result->exitCode}). Continuing with configuration anyway.");
-                    }
+                $this->line('Running: <info>' . $advisor->getInstallCommand($debugger->getName()) . '</info>');
+                $result = $installer->install($debugger->getName(), function (string $line): void {
+                    $this->line("  │ {$line}");
+                });
+
+                if ($result->success) {
+                    $this->info("✅ {$debugger->getName()} installed successfully.");
+                    $requiresRestart = true;
+                } else {
+                    $this->error("❌ Installation failed (exit {$result->exitCode}).");
+                    $this->info('Please install the extension manually, then re-run setup.');
+                    return self::FAILURE;
                 }
             } else {
                 // Docker / Windows — show instructions only
                 $this->warn($advisor->getInstallInstructions($debugger->getName()));
+                $this->info('Please install the extension first, then re-run setup.');
+                return self::FAILURE;
+            }
+        }
 
-                $proceed = $this->confirm('Continue anyway? (configuration will be written but may not take effect)', false);
-                if (!$proceed) {
-                    $this->info('Setup cancelled. Install the extension first, then re-run.');
-                    return self::SUCCESS;
+        // Extension is installed but disabled — offer to enable it
+        if (!$debugger->isInstalled() && $debugger->hasIniDirective()) {
+            $this->warn("The '{$debugger->getName()}' extension is disabled.");
+
+            $enable = $this->confirm('Would you like to enable it now?', true);
+            if ($enable) {
+                try {
+                    $debugger->setEnabled(true);
+                    $this->info("✅ {$debugger->getName()} enabled.");
+                    $requiresRestart = true;
+                } catch (\Throwable $e) {
+                    $this->error("❌ Failed to enable {$debugger->getName()}: {$e->getMessage()}");
                 }
             }
         }
@@ -106,7 +125,8 @@ final class SetupCommand extends Command
         // ---------------------------------------------------------------
         //  4. Build Config & Execute
         // ---------------------------------------------------------------
-        $config = $this->buildConfig($env);
+        $xdebugMode = $this->resolveXdebugMode($debugger);
+        $config = $this->buildConfig($env, $xdebugMode);
 
         $this->newLine();
         $this->info('Configuring ' . $debugger->getName() . '…');
@@ -136,11 +156,11 @@ final class SetupCommand extends Command
         $this->newLine();
         $this->info('Running health-check…');
 
-        if ($justInstalled) {
+        if ($requiresRestart) {
             $this->newLine();
             $this->info('🎉 All done! Configuration files have been written.');
             $this->newLine();
-            $this->warn("⚠️  {$debugger->getName()} was just installed and requires a PHP restart.");
+            $this->warn("⚠️  {$debugger->getName()} was just installed/enabled and requires a PHP restart.");
             $this->line('Please restart your PHP process (php-fpm, Apache, or terminal) and then run:');
             $this->newLine();
             $this->line('    php bin/debug-pilot');
@@ -261,7 +281,7 @@ final class SetupCommand extends Command
         return $driverManager->resolveIntegrator($choice);
     }
 
-    private function buildConfig(EnvironmentDetector $env): Config
+    private function buildConfig(EnvironmentDetector $env, string $xdebugMode = 'debug'): Config
     {
         $iniPath = $env->findPhpIniPath() ?? '';
         $host = (string) $this->option('host');
@@ -271,6 +291,44 @@ final class SetupCommand extends Command
             phpIniPath: $iniPath,
             clientHost: $host,
             clientPort: $port,
+            xdebugMode: $xdebugMode,
         );
+    }
+
+    /**
+     * Resolve the xdebug mode — from CLI option, interactive prompt, or default.
+     */
+    private function resolveXdebugMode(DebuggerDriver $debugger): string
+    {
+        // Only relevant for xdebug
+        if ($debugger->getName() !== 'xdebug') {
+            return 'off';
+        }
+
+        // CLI option takes priority
+        $option = $this->option('xdebug-mode');
+        if (is_string($option) && $option !== '') {
+            return $option;
+        }
+
+        // Read current xdebug.mode to pre-select existing configuration
+        $availableModes = ['debug', 'develop', 'coverage', 'profile', 'trace'];
+        $currentMode = ini_get('xdebug.mode') ?: '';
+        $currentModes = array_filter(
+            array_map('trim', explode(',', $currentMode)),
+            fn(string $m) => in_array($m, $availableModes, true),
+        );
+        $defaultModes = !empty($currentModes) ? array_values($currentModes) : ['debug'];
+
+        // Interactive prompt
+        $modes = multiselect(
+            label: 'Which Xdebug modes would you like to enable?',
+            options: $availableModes,
+            default: $defaultModes,
+            required: true,
+            hint: 'Use space to select, enter to confirm.',
+        );
+
+        return implode(',', $modes);
     }
 }

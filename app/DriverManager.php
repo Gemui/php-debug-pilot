@@ -126,7 +126,7 @@ final class DriverManager
     public function getInstalledDebuggers(): array
     {
         return array_values(
-            array_filter($this->debuggers, fn(DebuggerDriver $d) => $d->isInstalled())
+            array_filter($this->debuggers, fn(DebuggerDriver $d) => $d->isInstalled() || $d->hasIniDirective())
         );
     }
 }

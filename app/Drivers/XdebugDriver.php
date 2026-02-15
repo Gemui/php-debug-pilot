@@ -121,7 +121,7 @@ final class XdebugDriver implements DebuggerDriver
 
         $clientHost = $this->resolveClientHost($config->clientHost);
 
-        $block = $this->buildIniBlock($clientHost, $config->clientPort, $config->ideKey);
+        $block = $this->buildIniBlock($clientHost, $config->clientPort, $config->ideKey, $config->xdebugMode);
 
         $existing = file_get_contents($iniPath);
         if ($existing === false) {
@@ -146,29 +146,34 @@ final class XdebugDriver implements DebuggerDriver
             ]);
         }
 
+        $iniPath = $this->env->findPhpIniPath();
+        $iniContent = ($iniPath !== null && is_file($iniPath))
+            ? (file_get_contents($iniPath) ?: '')
+            : '';
+
         $messages = [];
         $passed = true;
 
         // Check mode
-        $mode = ini_get('xdebug.mode') ?: 'off';
-        if (str_contains($mode, 'debug')) {
-            $messages[] = "✅ xdebug.mode includes 'debug' (current: {$mode}).";
+        $mode = $this->readIniDirective($iniContent, 'xdebug.mode') ?? 'off';
+        if ($mode !== 'off') {
+            $messages[] = "✅ xdebug.mode = {$mode}";
         } else {
-            $messages[] = "❌ xdebug.mode does not include 'debug' (current: {$mode}).";
+            $messages[] = "❌ xdebug.mode is 'off' — no Xdebug features are active.";
             $passed = false;
         }
 
         // Check client host
-        $host = ini_get('xdebug.client_host') ?: 'localhost';
+        $host = $this->readIniDirective($iniContent, 'xdebug.client_host') ?? 'localhost';
         $messages[] = "ℹ️  xdebug.client_host = {$host}";
 
         // Check client port
-        $port = ini_get('xdebug.client_port') ?: '9003';
+        $port = $this->readIniDirective($iniContent, 'xdebug.client_port') ?? '9003';
         $messages[] = "ℹ️  xdebug.client_port = {$port}";
 
         // Check start_with_request
-        $start = ini_get('xdebug.start_with_request') ?: 'default';
-        if ($start === 'yes') {
+        $start = $this->readIniDirective($iniContent, 'xdebug.start_with_request') ?? 'default';
+        if (in_array($start, ['yes', '1', 'On'], true)) {
             $messages[] = '✅ xdebug.start_with_request = yes';
         } else {
             $messages[] = "⚠️  xdebug.start_with_request = {$start} (recommend 'yes')";
@@ -215,13 +220,13 @@ final class XdebugDriver implements DebuggerDriver
     /**
      * Build the INI directives block.
      */
-    private function buildIniBlock(string $host, int $port, string $ideKey): string
+    private function buildIniBlock(string $host, int $port, string $ideKey, string $mode = 'debug'): string
     {
         return <<<INI
 
         ; >>> PHP Debug Pilot — Xdebug Configuration <<<
         [xdebug]
-        xdebug.mode                = debug
+        xdebug.mode                = {$mode}
         xdebug.client_host         = {$host}
         xdebug.client_port         = {$port}
         xdebug.idekey              = {$ideKey}
@@ -240,5 +245,21 @@ final class XdebugDriver implements DebuggerDriver
         $pattern = '/\n?; >>> PHP Debug Pilot — Xdebug Configuration <<<.*?; >>> End PHP Debug Pilot — Xdebug <<<\n?/s';
 
         return preg_replace($pattern, '', $content) ?? $content;
+    }
+
+    /**
+     * Read a directive value from raw INI content.
+     *
+     * Returns the last uncommented occurrence so that the Debug Pilot
+     * block (appended at the end) takes precedence over earlier values.
+     */
+    private function readIniDirective(string $iniContent, string $directive): ?string
+    {
+        $escaped = preg_quote($directive, '/');
+        if (preg_match_all('/^\s*' . $escaped . '\s*=\s*(.+)$/m', $iniContent, $matches)) {
+            return trim(end($matches[1]));
+        }
+
+        return null;
     }
 }

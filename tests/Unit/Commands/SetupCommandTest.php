@@ -73,25 +73,70 @@ final class SetupCommandTest extends TestCase
             '--project-path' => $this->tmpDir,
             '--host' => 'localhost',
             '--port' => '9003',
+            '--xdebug-mode' => 'debug',
         ])->assertSuccessful();
     }
 
-    public function testCommandShowsInstallHintWhenDebuggerNotInstalled(): void
+    public function testCommandStopsWhenDebuggerNotInstalledAndUserDeclinesInstall(): void
     {
-        $debugger = $this->createMockDebugger('xdebug', installed: false);
+        $debugger = $this->createMockDebugger('xdebug', installed: false, hasIniDirective: false);
         $ide = $this->createMockIde('vscode');
 
         $this->manager->registerDebugger($debugger);
         $this->manager->registerIntegrator($ide);
 
         // On macOS/Linux canAutoInstall() returns true, so it asks "Would you like to install it now?"
-        // Answer "no" to skip install, then it continues to configure
+        // Answer "no" — command should now stop with failure
         $this->artisan('setup', [
             '--debugger' => 'xdebug',
             '--ide' => 'vscode',
             '--project-path' => $this->tmpDir,
+            '--xdebug-mode' => 'debug',
         ])->expectsConfirmation('Would you like to install it now?', 'no')
+            ->assertFailed();
+    }
+
+    public function testCommandEnablesDisabledExtensionInsteadOfInstalling(): void
+    {
+        $debugger = $this->createMockDebugger('xdebug', installed: false, hasIniDirective: true);
+
+        // Should NOT call verify() because restart is required
+        $debugger->expects($this->never())->method('verify');
+
+        $ide = $this->createMockIde('vscode');
+
+        $this->manager->registerDebugger($debugger);
+        $this->manager->registerIntegrator($ide);
+
+        $this->artisan('setup', [
+            '--debugger' => 'xdebug',
+            '--ide' => 'vscode',
+            '--project-path' => $this->tmpDir,
+            '--host' => 'localhost',
+            '--port' => '9003',
+            '--xdebug-mode' => 'debug',
+        ])->expectsOutputToContain('disabled')
+            ->expectsConfirmation('Would you like to enable it now?', 'yes')
+            ->expectsOutputToContain('requires a PHP restart')
             ->assertSuccessful();
+    }
+
+    public function testCommandAcceptsXdebugModeOption(): void
+    {
+        $debugger = $this->createMockDebugger('xdebug', installed: true);
+        $ide = $this->createMockIde('vscode');
+
+        $this->manager->registerDebugger($debugger);
+        $this->manager->registerIntegrator($ide);
+
+        $this->artisan('setup', [
+            '--debugger' => 'xdebug',
+            '--ide' => 'vscode',
+            '--project-path' => $this->tmpDir,
+            '--host' => 'localhost',
+            '--port' => '9003',
+            '--xdebug-mode' => 'debug,profile',
+        ])->assertSuccessful();
     }
 
     public function testCommandFailsForUnknownDebugger(): void
@@ -118,12 +163,14 @@ final class SetupCommandTest extends TestCase
     //  Helpers
     // -----------------------------------------------------------------
 
-    private function createMockDebugger(string $name, bool $installed = true): DebuggerDriver
+    private function createMockDebugger(string $name, bool $installed = true, bool $hasIniDirective = true): DebuggerDriver
     {
         $mock = $this->createMock(DebuggerDriver::class);
         $mock->method('getName')->willReturn($name);
         $mock->method('isInstalled')->willReturn($installed);
+        $mock->method('hasIniDirective')->willReturn($hasIniDirective);
         $mock->method('configure')->willReturn(true);
+        $mock->method('setEnabled')->willReturn(true);
         $mock->method('verify')->willReturn(
             HealthCheckResult::pass($name, ['✅ All good.'])
         );

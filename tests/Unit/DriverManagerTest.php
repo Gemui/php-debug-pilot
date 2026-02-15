@@ -100,7 +100,7 @@ final class DriverManagerTest extends TestCase
     public function testGetInstalledDebuggersFiltersCorrectly(): void
     {
         $installed = $this->createMockDebugger('xdebug', isInstalled: true);
-        $notInstalled = $this->createMockDebugger('pcov', isInstalled: false);
+        $notInstalled = $this->createMockDebugger('pcov', isInstalled: false, hasIniDirective: false);
 
         $this->manager->registerDebugger($installed);
         $this->manager->registerDebugger($notInstalled);
@@ -109,6 +109,18 @@ final class DriverManagerTest extends TestCase
 
         $this->assertCount(1, $result);
         $this->assertSame($installed, $result[0]);
+    }
+
+    public function testGetInstalledDebuggersIncludesDisabledWithIniDirective(): void
+    {
+        $disabled = $this->createMockDebugger('xdebug', isInstalled: false, hasIniDirective: true);
+
+        $this->manager->registerDebugger($disabled);
+
+        $result = $this->manager->getInstalledDebuggers();
+
+        $this->assertCount(1, $result);
+        $this->assertSame($disabled, $result[0]);
     }
 
     // -----------------------------------------------------------------
@@ -156,11 +168,12 @@ final class DriverManagerTest extends TestCase
     //  Helpers
     // -----------------------------------------------------------------
 
-    private function createMockDebugger(string $name, bool $isInstalled = true): DebuggerDriver
+    private function createMockDebugger(string $name, bool $isInstalled = true, bool $hasIniDirective = true): DebuggerDriver
     {
         $mock = $this->createMock(DebuggerDriver::class);
         $mock->method('getName')->willReturn($name);
         $mock->method('isInstalled')->willReturn($isInstalled);
+        $mock->method('hasIniDirective')->willReturn($hasIniDirective);
 
         return $mock;
     }
