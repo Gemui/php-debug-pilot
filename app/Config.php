@@ -14,6 +14,7 @@ final readonly class Config
         public string $clientHost = 'localhost',
         public int $clientPort = 9003,
         public string $ideKey = 'PHPSTORM',
+        public string $xdebugMode = 'debug',
     ) {
     }
 
@@ -25,12 +26,14 @@ final readonly class Config
         ?string $clientHost = null,
         ?int $clientPort = null,
         ?string $ideKey = null,
+        ?string $xdebugMode = null,
     ): self {
         return new self(
             phpIniPath: $phpIniPath ?? $this->phpIniPath,
             clientHost: $clientHost ?? $this->clientHost,
             clientPort: $clientPort ?? $this->clientPort,
             ideKey: $ideKey ?? $this->ideKey,
+            xdebugMode: $xdebugMode ?? $this->xdebugMode,
         );
     }
 }

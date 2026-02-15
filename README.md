@@ -61,7 +61,7 @@ debug-pilot toggle xdebug
 Or add it as a dev dependency to a specific project:
 
 ```bash
-composer require --dev ahmedgamal/php-debug-pilot
+composer require --dev gemui/php-debug-pilot
 ```
 
 Then use it via Composer's local bin:
@@ -117,6 +117,19 @@ debug-pilot toggle pcov
 
 > If the extension is not installed, the tool will offer to install it for you automatically (on supported systems).
 
+### Install Extensions
+Manually install a specific extension:
+
+```bash
+# Install Xdebug
+debug-pilot install xdebug
+
+# Install Pcov
+debug-pilot install pcov
+```
+
+> The tool will automatically detect if auto-installation is supported on your system and run the appropriate installation command. If auto-installation is not available (e.g., Docker, Windows), it will display manual installation instructions.
+
 ### Non-Interactive Setup
 Perfect for CI/CD pipelines or automated setup scripts:
 
@@ -129,6 +142,9 @@ debug-pilot setup --debugger=pcov --ide=phpstorm
 
 # Custom host/port override
 debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --port=9000
+
+# Configure specific Xdebug modes
+debug-pilot setup --debugger=xdebug --ide=vscode --xdebug-mode=debug,develop,coverage
 ```
 
 ### Setup Options
@@ -140,6 +156,7 @@ debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --port=9000
 | `-i`, `--ide` | IDE to configure (`vscode`, `phpstorm`, `sublime`) | *(Auto-detects or prompts)* |
 | `--host` | Xdebug client host IP | `auto` (detects Docker host or `localhost`) |
 | `--port` | Xdebug client port | `9003` |
+| `--xdebug-mode` | Xdebug modes, comma-separated (`debug`, `develop`, `coverage`, `profile`, `trace`) | *(Prompts user with current modes pre-selected)* |
 
 ---
 

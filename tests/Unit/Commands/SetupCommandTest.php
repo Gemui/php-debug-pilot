@@ -73,10 +73,11 @@ final class SetupCommandTest extends TestCase
             '--project-path' => $this->tmpDir,
             '--host' => 'localhost',
             '--port' => '9003',
+            '--xdebug-mode' => 'debug',
         ])->assertSuccessful();
     }
 
-    public function testCommandShowsInstallHintWhenDebuggerNotInstalled(): void
+    public function testCommandStopsWhenDebuggerNotInstalledAndUserDeclinesInstall(): void
     {
         $debugger = $this->createMockDebugger('xdebug', installed: false, hasIniDirective: false);
         $ide = $this->createMockIde('vscode');
@@ -85,13 +86,14 @@ final class SetupCommandTest extends TestCase
         $this->manager->registerIntegrator($ide);
 
         // On macOS/Linux canAutoInstall() returns true, so it asks "Would you like to install it now?"
-        // Answer "no" to skip install, then it continues to configure
+        // Answer "no" — command should now stop with failure
         $this->artisan('setup', [
             '--debugger' => 'xdebug',
             '--ide' => 'vscode',
             '--project-path' => $this->tmpDir,
+            '--xdebug-mode' => 'debug',
         ])->expectsConfirmation('Would you like to install it now?', 'no')
-            ->assertSuccessful();
+            ->assertFailed();
     }
 
     public function testCommandEnablesDisabledExtensionInsteadOfInstalling(): void
@@ -112,10 +114,29 @@ final class SetupCommandTest extends TestCase
             '--project-path' => $this->tmpDir,
             '--host' => 'localhost',
             '--port' => '9003',
+            '--xdebug-mode' => 'debug',
         ])->expectsOutputToContain('disabled')
             ->expectsConfirmation('Would you like to enable it now?', 'yes')
             ->expectsOutputToContain('requires a PHP restart')
             ->assertSuccessful();
+    }
+
+    public function testCommandAcceptsXdebugModeOption(): void
+    {
+        $debugger = $this->createMockDebugger('xdebug', installed: true);
+        $ide = $this->createMockIde('vscode');
+
+        $this->manager->registerDebugger($debugger);
+        $this->manager->registerIntegrator($ide);
+
+        $this->artisan('setup', [
+            '--debugger' => 'xdebug',
+            '--ide' => 'vscode',
+            '--project-path' => $this->tmpDir,
+            '--host' => 'localhost',
+            '--port' => '9003',
+            '--xdebug-mode' => 'debug,profile',
+        ])->assertSuccessful();
     }
 
     public function testCommandFailsForUnknownDebugger(): void
