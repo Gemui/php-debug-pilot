@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace App\Drivers;
 
 use App\Config;
-use App\Contracts\DebuggerDriver;
 use App\HealthCheckResult;
 use App\Support\EnvironmentDetector;
 use App\Support\IniEditor;
-use RuntimeException;
 
 /**
  * Xdebug debugger driver.
@@ -17,125 +15,27 @@ use RuntimeException;
  * Detects, configures, and verifies the Xdebug PHP extension
  * for step-debugging with any supported IDE.
  */
-final class XdebugDriver implements DebuggerDriver
+final class XdebugDriver extends AbstractPhpExtensionDriver
 {
     /** Regex pattern that matches the zend_extension directive for xdebug. */
-    private const EXTENSION_PATTERN = 'zend_extension\s*=\s*["\']?(?:.*[\/\\\\])?xdebug(?:\.so|\.dll)?["\']?';
+    protected const EXTENSION_PATTERN = 'zend_extension\s*=\s*["\']?(?:.*[/\\\\])?xdebug(?:\.so|\.dll)?["\']?';
+
+    /** Start marker for the Xdebug configuration block. */
+    protected const BLOCK_MARKER_START = '; >>> PHP Debug Pilot — Xdebug Configuration <<<';
+
+    /** End marker for the Xdebug configuration block. */
+    protected const BLOCK_MARKER_END = '; >>> End PHP Debug Pilot — Xdebug <<<';
 
     public function __construct(
-        private readonly EnvironmentDetector $env,
-        private readonly IniEditor $iniEditor = new IniEditor(),
+        EnvironmentDetector $env,
+        IniEditor $iniEditor = new IniEditor(),
     ) {
+        parent::__construct($env, $iniEditor);
     }
 
     public function getName(): string
     {
         return 'xdebug';
-    }
-
-    public function isInstalled(): bool
-    {
-        return $this->env->isExtensionLoaded('xdebug');
-    }
-
-    public function isEnabled(): bool
-    {
-        $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null || !is_file($iniPath)) {
-            return false;
-        }
-
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            return false;
-        }
-
-        return $this->iniEditor->isLineEnabled($content, self::EXTENSION_PATTERN);
-    }
-
-    public function hasIniDirective(): bool
-    {
-        $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null || !is_file($iniPath)) {
-            return false;
-        }
-
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            return false;
-        }
-
-        return $this->iniEditor->hasLine($content, self::EXTENSION_PATTERN);
-    }
-
-    public function setEnabled(bool $enabled): bool
-    {
-        $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null) {
-            throw new RuntimeException('Could not auto-detect php.ini path.');
-        }
-
-        if (!is_writable($iniPath)) {
-            throw new RuntimeException(
-                sprintf('Cannot write to php.ini at "%s". Check file permissions.', $iniPath)
-            );
-        }
-
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            throw new RuntimeException(sprintf('Failed to read php.ini at "%s".', $iniPath));
-        }
-
-        if ($enabled) {
-            if ($this->iniEditor->hasLine($content, self::EXTENSION_PATTERN)) {
-                $content = $this->iniEditor->uncommentLine($content, self::EXTENSION_PATTERN);
-            } else {
-                $content = $this->iniEditor->appendLine($content, 'zend_extension=xdebug');
-            }
-        } else {
-            $content = $this->iniEditor->commentLine($content, self::EXTENSION_PATTERN);
-        }
-
-        if (file_put_contents($iniPath, $content) === false) {
-            throw new RuntimeException(sprintf('Failed to write to php.ini at "%s".', $iniPath));
-        }
-
-        return true;
-    }
-
-    /**
-     * Write Xdebug configuration directives to php.ini.
-     *
-     * Appends a clearly marked block so it can be identified and
-     * replaced on subsequent runs.
-     */
-    public function configure(Config $config): bool
-    {
-        $iniPath = $this->resolveIniPath($config->phpIniPath);
-
-        if (!is_writable($iniPath)) {
-            throw new RuntimeException(
-                sprintf('Cannot write to php.ini at "%s". Check file permissions.', $iniPath)
-            );
-        }
-
-        $clientHost = $this->resolveClientHost($config->clientHost);
-
-        $block = $this->buildIniBlock($clientHost, $config->clientPort, $config->ideKey, $config->xdebugMode);
-
-        $existing = file_get_contents($iniPath);
-        if ($existing === false) {
-            throw new RuntimeException(sprintf('Failed to read php.ini at "%s".', $iniPath));
-        }
-
-        // Remove any previous debug-pilot Xdebug block before appending.
-        $cleaned = $this->stripExistingBlock($existing);
-
-        if (file_put_contents($iniPath, $cleaned . $block) === false) {
-            throw new RuntimeException(sprintf('Failed to write to php.ini at "%s".', $iniPath));
-        }
-
-        return true;
     }
 
     public function verify(): HealthCheckResult
@@ -183,27 +83,48 @@ final class XdebugDriver implements DebuggerDriver
     }
 
     // -----------------------------------------------------------------
-    //  Internal helpers
+    //  Protected methods (Template Method implementation)
     // -----------------------------------------------------------------
 
     /**
-     * Resolve the php.ini path — use Config value or fall back to auto-detect.
+     * Build the INI directives block for Xdebug.
      */
-    private function resolveIniPath(string $configPath): string
+    protected function buildIniBlock(Config $config): string
     {
-        if ($configPath !== '') {
-            return $configPath;
-        }
+        $host = $this->resolveClientHost($config->clientHost);
+        $port = $config->clientPort;
+        $ideKey = $config->ideKey;
+        $mode = $config->xdebugMode;
 
-        $detected = $this->env->findPhpIniPath();
-        if ($detected === null) {
-            throw new RuntimeException(
-                'Could not auto-detect php.ini path. Please specify it manually.'
-            );
-        }
+        $start = static::BLOCK_MARKER_START;
+        $end = static::BLOCK_MARKER_END;
 
-        return $detected;
+        return <<<INI
+
+        {$start}
+        [xdebug]
+        xdebug.mode                = {$mode}
+        xdebug.client_host         = {$host}
+        xdebug.client_port         = {$port}
+        xdebug.idekey              = {$ideKey}
+        xdebug.start_with_request  = yes
+        xdebug.discover_client_host = false
+        {$end}
+
+        INI;
     }
+
+    /**
+     * Override to use zend_extension instead of extension.
+     */
+    protected function getExtensionDirectivePrefix(): string
+    {
+        return 'zend_extension=';
+    }
+
+    // -----------------------------------------------------------------
+    //  Private helpers
+    // -----------------------------------------------------------------
 
     /**
      * Resolve the client host — delegate to EnvironmentDetector when set to 'auto'.
@@ -215,36 +136,6 @@ final class XdebugDriver implements DebuggerDriver
         }
 
         return $this->env->getClientHost();
-    }
-
-    /**
-     * Build the INI directives block.
-     */
-    private function buildIniBlock(string $host, int $port, string $ideKey, string $mode = 'debug'): string
-    {
-        return <<<INI
-
-        ; >>> PHP Debug Pilot — Xdebug Configuration <<<
-        [xdebug]
-        xdebug.mode                = {$mode}
-        xdebug.client_host         = {$host}
-        xdebug.client_port         = {$port}
-        xdebug.idekey              = {$ideKey}
-        xdebug.start_with_request  = yes
-        xdebug.discover_client_host = false
-        ; >>> End PHP Debug Pilot — Xdebug <<<
-
-        INI;
-    }
-
-    /**
-     * Remove any previously written debug-pilot Xdebug block from INI content.
-     */
-    private function stripExistingBlock(string $content): string
-    {
-        $pattern = '/\n?; >>> PHP Debug Pilot — Xdebug Configuration <<<.*?; >>> End PHP Debug Pilot — Xdebug <<<\n?/s';
-
-        return preg_replace($pattern, '', $content) ?? $content;
     }
 
     /**

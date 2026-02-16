@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Commands;
 
 use App\DriverManager;
-use App\Support\ExtensionInstaller;
-use App\Support\InstallationAdvisor;
+use App\Support\ExtensionInstallationService;
+use App\Support\EnvironmentDetector;
+use App\Exceptions\PhpIniNotWritableException;
+use App\Exceptions\PhpIniNotFoundException;
 use LaravelZero\Framework\Commands\Command;
 
 /**
@@ -27,8 +29,8 @@ final class ToggleCommand extends Command
 
     public function handle(
         DriverManager $driverManager,
-        ExtensionInstaller $installer,
-        InstallationAdvisor $advisor,
+        ExtensionInstallationService $installationService,
+        EnvironmentDetector $env,
     ): int {
         $name = strtolower((string) $this->argument('extension'));
 
@@ -43,35 +45,26 @@ final class ToggleCommand extends Command
         $wasEnabled = $driver->isEnabled();
         $newState = !$wasEnabled;
 
-        // ---------------------------------------------------------------
-        //  Guard: cannot enable an extension that is not installed
-        // ---------------------------------------------------------------
-        if ($newState && !$driver->isInstalled() && !$driver->hasIniDirective()) {
-            $this->warn("The '{$name}' extension is not installed.");
+        // Ensure extension is ready if enabling
+        if ($newState && (!$driver->isInstalled() || !$driver->isEnabled())) {
+            $result = $installationService->ensureExtensionReady(
+                $driver,
+                fn(string $line) => $this->line($line),
+                fn(string $message, bool $default) => $this->confirm($message, $default)
+            );
 
-            if ($installer->canAutoInstall()) {
-                $install = $this->confirm('Would you like to install it now?', true);
-                if ($install) {
-                    $this->line('Running: <info>' . $advisor->getInstallCommand($name) . '</info>');
-                    $result = $installer->install($name, function (string $line): void {
-                        $this->line("  │ {$line}");
-                    });
-
-                    if ($result->success) {
-                        $this->info("✅ {$name} installed successfully.");
-                    } else {
-                        $this->error("❌ Installation failed (exit {$result->exitCode}).");
-                        return self::FAILURE;
-                    }
-                } else {
-                    $this->info('Cannot enable an extension that is not installed. Install it first, then re-run.');
-                    return self::SUCCESS;
-                }
-            } else {
-                $this->warn($advisor->getInstallInstructions($name));
-                $this->info('Install the extension first, then re-run this command.');
+            if (!$result->success) {
+                $this->info($result->message);
                 return self::SUCCESS;
             }
+
+            // Extension was just installed/enabled
+            $this->newLine();
+            $this->info("✅ {$name} is now enabled.");
+            $this->newLine();
+            $this->warn('⚠️  Please restart your PHP process (php-fpm, Apache, or terminal)');
+            $this->line('for the change to take effect.');
+            return self::SUCCESS;
         }
 
         $action = $newState ? 'Enabling' : 'Disabling';
@@ -81,6 +74,19 @@ final class ToggleCommand extends Command
 
         try {
             $driver->setEnabled($newState);
+        } catch (PhpIniNotWritableException $e) {
+            $this->error("❌ {$e->getMessage()}");
+            $this->newLine();
+            if (!$env->isDocker()) {
+                $this->line('Try running the command with sudo:');
+                $this->line('  sudo debug-pilot toggle ' . $name);
+            } else {
+                $this->line('Ensure your Dockerfile grants write permissions to php.ini.');
+            }
+            return self::FAILURE;
+        } catch (PhpIniNotFoundException $e) {
+            $this->error("❌ {$e->getMessage()}");
+            return self::FAILURE;
         } catch (\Throwable $e) {
             $this->error("❌ Failed to {$action} {$name}: {$e->getMessage()}");
             return self::FAILURE;

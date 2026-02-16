@@ -9,8 +9,9 @@ use App\Contracts\DebuggerDriver;
 use App\Contracts\IdeIntegrator;
 use App\DriverManager;
 use App\Support\EnvironmentDetector;
-use App\Support\ExtensionInstaller;
-use App\Support\InstallationAdvisor;
+use App\Support\ExtensionInstallationService;
+use App\Exceptions\PhpIniNotWritableException;
+use App\Exceptions\PhpIniNotFoundException;
 use LaravelZero\Framework\Commands\Command;
 
 use function Laravel\Prompts\select;
@@ -42,8 +43,7 @@ final class SetupCommand extends Command
     public function handle(
         DriverManager $driverManager,
         EnvironmentDetector $env,
-        InstallationAdvisor $advisor,
-        ExtensionInstaller $installer,
+        ExtensionInstallationService $installationService,
     ): int {
         $this->info('');
         $this->info('🚀 PHP Debug Pilot — Setup');
@@ -65,54 +65,19 @@ final class SetupCommand extends Command
             return self::FAILURE;
         }
 
-        // Check if installed — offer to install automatically
-        $requiresRestart = false;
-        if (!$debugger->isInstalled() && !$debugger->hasIniDirective()) {
-            $this->warn("The '{$debugger->getName()}' extension is not installed.");
+        // Ensure extension is ready (installed and enabled)
+        $result = $installationService->ensureExtensionReady(
+            $debugger,
+            fn(string $line) => $this->line($line),
+            fn(string $message, bool $default) => $this->confirm($message, $default)
+        );
 
-            if ($installer->canAutoInstall()) {
-                $install = $this->confirm('Would you like to install it now?', true);
-                if (!$install) {
-                    $this->info('Setup cancelled. Install the extension first, then re-run.');
-                    return self::FAILURE;
-                }
-
-                $this->line('Running: <info>' . $advisor->getInstallCommand($debugger->getName()) . '</info>');
-                $result = $installer->install($debugger->getName(), function (string $line): void {
-                    $this->line("  │ {$line}");
-                });
-
-                if ($result->success) {
-                    $this->info("✅ {$debugger->getName()} installed successfully.");
-                    $requiresRestart = true;
-                } else {
-                    $this->error("❌ Installation failed (exit {$result->exitCode}).");
-                    $this->info('Please install the extension manually, then re-run setup.');
-                    return self::FAILURE;
-                }
-            } else {
-                // Docker / Windows — show instructions only
-                $this->warn($advisor->getInstallInstructions($debugger->getName()));
-                $this->info('Please install the extension first, then re-run setup.');
-                return self::FAILURE;
-            }
+        if (!$result->success) {
+            $this->error($result->message);
+            return self::FAILURE;
         }
 
-        // Extension is installed but disabled — offer to enable it
-        if (!$debugger->isInstalled() && $debugger->hasIniDirective()) {
-            $this->warn("The '{$debugger->getName()}' extension is disabled.");
-
-            $enable = $this->confirm('Would you like to enable it now?', true);
-            if ($enable) {
-                try {
-                    $debugger->setEnabled(true);
-                    $this->info("✅ {$debugger->getName()} enabled.");
-                    $requiresRestart = true;
-                } catch (\Throwable $e) {
-                    $this->error("❌ Failed to enable {$debugger->getName()}: {$e->getMessage()}");
-                }
-            }
-        }
+        $requiresRestart = $result->requiresRestart;
 
         // ---------------------------------------------------------------
         //  3. Select IDE
@@ -134,6 +99,20 @@ final class SetupCommand extends Command
         try {
             $debugger->configure($config);
             $this->info("✅ {$debugger->getName()} configuration written.");
+        } catch (PhpIniNotWritableException $e) {
+            $this->error("❌ {$e->getMessage()}");
+            $this->newLine();
+            if (!$env->isDocker()) {
+                $this->line('Try running the command with sudo:');
+                $this->line('  sudo debug-pilot setup');
+            } else {
+                $this->line('Ensure your Dockerfile grants write permissions to php.ini.');
+            }
+            return self::FAILURE;
+        } catch (PhpIniNotFoundException $e) {
+            $this->error("❌ {$e->getMessage()}");
+            $this->line('Use the --project-path option to specify the php.ini location.');
+            return self::FAILURE;
         } catch (\Throwable $e) {
             $this->error("❌ Failed to configure {$debugger->getName()}: {$e->getMessage()}");
             return self::FAILURE;

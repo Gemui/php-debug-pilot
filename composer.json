@@ -1,5 +1,5 @@
 {
-    "name": "ahmedgamal/php-debug-pilot",
+    "name": "gemui/php-debug-pilot",
     "description": "An extensible CLI platform to manage PHP runtime debug configurations.",
     "type": "project",
     "keywords": [

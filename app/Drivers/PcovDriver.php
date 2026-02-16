@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Drivers;
 
 use App\Config;
-use App\Contracts\DebuggerDriver;
+use App\Exceptions\PhpIniNotWritableException;
+use App\Exceptions\PhpIniReadException;
+use App\Exceptions\PhpIniWriteException;
 use App\HealthCheckResult;
 use App\Support\EnvironmentDetector;
 use App\Support\IniEditor;
-use RuntimeException;
 
 /**
  * Pcov driver for fast code-coverage collection.
@@ -18,15 +19,22 @@ use RuntimeException;
  * When Pcov is activated this driver ensures Xdebug's coverage
  * mode is disabled to prevent conflicts.
  */
-final class PcovDriver implements DebuggerDriver
+final class PcovDriver extends AbstractPhpExtensionDriver
 {
     /** Regex pattern that matches the extension directive for pcov. */
-    private const EXTENSION_PATTERN = 'extension\s*=\s*["\']?(?:.*[\/\\\\])?pcov(?:\.so|\.dll)?["\']?';
+    protected const EXTENSION_PATTERN = 'extension\s*=\s*["\']?(?:.*[/\\\\])?pcov(?:\.so|\.dll)?["\']?';
+
+    /** Start marker for the Pcov configuration block. */
+    protected const BLOCK_MARKER_START = '; >>> PHP Debug Pilot — Pcov Configuration <<<';
+
+    /** End marker for the Pcov configuration block. */
+    protected const BLOCK_MARKER_END = '; >>> End PHP Debug Pilot — Pcov <<<';
 
     public function __construct(
-        private readonly EnvironmentDetector $env,
-        private readonly IniEditor $iniEditor = new IniEditor(),
+        EnvironmentDetector $env,
+        IniEditor $iniEditor = new IniEditor(),
     ) {
+        parent::__construct($env, $iniEditor);
     }
 
     public function getName(): string
@@ -34,107 +42,31 @@ final class PcovDriver implements DebuggerDriver
         return 'pcov';
     }
 
-    public function isInstalled(): bool
-    {
-        return $this->env->isExtensionLoaded('pcov');
-    }
-
-    public function isEnabled(): bool
-    {
-        $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null || !is_file($iniPath)) {
-            return false;
-        }
-
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            return false;
-        }
-
-        return $this->iniEditor->isLineEnabled($content, self::EXTENSION_PATTERN);
-    }
-
-    public function hasIniDirective(): bool
-    {
-        $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null || !is_file($iniPath)) {
-            return false;
-        }
-
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            return false;
-        }
-
-        return $this->iniEditor->hasLine($content, self::EXTENSION_PATTERN);
-    }
-
-    public function setEnabled(bool $enabled): bool
-    {
-        $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null) {
-            throw new RuntimeException('Could not auto-detect php.ini path.');
-        }
-
-        if (!is_writable($iniPath)) {
-            throw new RuntimeException(
-                sprintf('Cannot write to php.ini at "%s". Check file permissions.', $iniPath)
-            );
-        }
-
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            throw new RuntimeException(sprintf('Failed to read php.ini at "%s".', $iniPath));
-        }
-
-        if ($enabled) {
-            if ($this->iniEditor->hasLine($content, self::EXTENSION_PATTERN)) {
-                $content = $this->iniEditor->uncommentLine($content, self::EXTENSION_PATTERN);
-            } else {
-                $content = $this->iniEditor->appendLine($content, 'extension=pcov');
-            }
-        } else {
-            $content = $this->iniEditor->commentLine($content, self::EXTENSION_PATTERN);
-        }
-
-        if (file_put_contents($iniPath, $content) === false) {
-            throw new RuntimeException(sprintf('Failed to write to php.ini at "%s".', $iniPath));
-        }
-
-        return true;
-    }
-
     /**
-     * Enable Pcov and disable conflicting Xdebug coverage mode.
+     * Override configure() to neutralize Xdebug coverage mode before calling parent.
      */
     public function configure(Config $config): bool
     {
         $iniPath = $this->resolveIniPath($config->phpIniPath);
 
         if (!is_writable($iniPath)) {
-            throw new RuntimeException(
-                sprintf('Cannot write to php.ini at "%s". Check file permissions.', $iniPath)
-            );
+            throw PhpIniNotWritableException::forPath($iniPath);
         }
 
         $existing = file_get_contents($iniPath);
         if ($existing === false) {
-            throw new RuntimeException(sprintf('Failed to read php.ini at "%s".', $iniPath));
+            throw PhpIniReadException::forPath($iniPath);
         }
 
-        // Remove any previous debug-pilot Pcov block.
-        $cleaned = $this->stripExistingBlock($existing);
+        // Conflict resolution: disable Xdebug coverage mode if present
+        $cleaned = $this->neutraliseXdebugCoverage($existing);
 
-        // Conflict resolution: disable Xdebug coverage mode if present.
-        $cleaned = $this->neutraliseXdebugCoverage($cleaned);
-
-        $block = $this->buildIniBlock();
-
-        if (file_put_contents($iniPath, $cleaned . $block) === false) {
-            throw new RuntimeException(sprintf('Failed to write to php.ini at "%s".', $iniPath));
+        if (file_put_contents($iniPath, $cleaned) === false) {
+            throw PhpIniWriteException::forPath($iniPath);
         }
 
-        return true;
+        // Now call parent to write Pcov configuration
+        return parent::configure($config);
     }
 
     public function verify(): HealthCheckResult
@@ -172,55 +104,33 @@ final class PcovDriver implements DebuggerDriver
     }
 
     // -----------------------------------------------------------------
-    //  Internal helpers
+    //  Protected methods (Template Method implementation)
     // -----------------------------------------------------------------
-
-    /**
-     * Resolve the php.ini path — use Config value or fall back to auto-detect.
-     */
-    private function resolveIniPath(string $configPath): string
-    {
-        if ($configPath !== '') {
-            return $configPath;
-        }
-
-        $detected = $this->env->findPhpIniPath();
-        if ($detected === null) {
-            throw new RuntimeException(
-                'Could not auto-detect php.ini path. Please specify it manually.'
-            );
-        }
-
-        return $detected;
-    }
 
     /**
      * Build the INI directives block for Pcov.
      */
-    private function buildIniBlock(): string
+    protected function buildIniBlock(Config $config): string
     {
+        $start = static::BLOCK_MARKER_START;
+        $end = static::BLOCK_MARKER_END;
+
         return <<<INI
 
-        ; >>> PHP Debug Pilot — Pcov Configuration <<<
+        {$start}
         [pcov]
         pcov.enabled   = 1
         pcov.directory = .
         ; Exclude vendor from coverage by default
         pcov.exclude   = /vendor/
-        ; >>> End PHP Debug Pilot — Pcov <<<
+        {$end}
 
         INI;
     }
 
-    /**
-     * Remove any previously written debug-pilot Pcov block from INI content.
-     */
-    private function stripExistingBlock(string $content): string
-    {
-        $pattern = '/\n?; >>> PHP Debug Pilot — Pcov Configuration <<<.*?; >>> End PHP Debug Pilot — Pcov <<<\n?/s';
-
-        return preg_replace($pattern, '', $content) ?? $content;
-    }
+    // -----------------------------------------------------------------
+    //  Private helpers
+    // -----------------------------------------------------------------
 
     /**
      * If Xdebug is configured with coverage mode, remove 'coverage' from xdebug.mode.

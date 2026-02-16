@@ -16,12 +16,14 @@ final class IniEditor
      * Check if a matching line exists and is uncommented.
      *
      * @param string $iniContent Full php.ini content.
-     * @param string $pattern    Regex pattern to match the directive line.
+     * @param string $pattern    Regex pattern to match the directive line (without delimiters).
      */
     public function isLineEnabled(string $iniContent, string $pattern): bool
     {
         // Match a line that is NOT prefixed with ';' (allowing leading whitespace)
-        return (bool) preg_match('/^\s*(?!;)' . $pattern . '/m', $iniContent);
+        // Wrap the pattern in a complete regex with # delimiter
+        $regex = '#^\s*(?!;)' . $pattern . '#m';
+        return (bool) preg_match($regex, $iniContent);
     }
 
     /**
@@ -30,15 +32,12 @@ final class IniEditor
      * Only modifies uncommented occurrences.
      *
      * @param string $iniContent Full php.ini content.
-     * @param string $pattern    Regex pattern to match the directive line.
+     * @param string $pattern    Regex pattern to match the directive line (without delimiters).
      */
     public function commentLine(string $iniContent, string $pattern): string
     {
-        return (string) preg_replace(
-            '/^(\s*)(?!;)(' . $pattern . '.*)$/m',
-            '$1;$2',
-            $iniContent
-        );
+        $regex = '#^(\s*)(?!;)(' . $pattern . '.*)$#m';
+        return (string) preg_replace($regex, '$1;$2', $iniContent);
     }
 
     /**
@@ -47,26 +46,24 @@ final class IniEditor
      * Only modifies commented occurrences.
      *
      * @param string $iniContent Full php.ini content.
-     * @param string $pattern    Regex pattern to match the directive line.
+     * @param string $pattern    Regex pattern to match the directive line (without delimiters).
      */
     public function uncommentLine(string $iniContent, string $pattern): string
     {
-        return (string) preg_replace(
-            '/^(\s*);+\s*(' . $pattern . '.*)$/m',
-            '$1$2',
-            $iniContent
-        );
+        $regex = '#^(\s*);+\s*(' . $pattern . '.*)$#m';
+        return (string) preg_replace($regex, '$1$2', $iniContent);
     }
 
     /**
      * Check whether a matching line exists at all (commented or not).
      *
      * @param string $iniContent Full php.ini content.
-     * @param string $pattern    Regex pattern to match the directive line.
+     * @param string $pattern    Regex pattern to match the directive line (without delimiters).
      */
     public function hasLine(string $iniContent, string $pattern): bool
     {
-        return (bool) preg_match('/^\s*;?\s*' . $pattern . '/m', $iniContent);
+        $regex = '#^\s*;?\s*' . $pattern . '#m';
+        return (bool) preg_match($regex, $iniContent);
     }
 
     /**

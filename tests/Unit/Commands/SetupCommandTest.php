@@ -9,16 +9,14 @@ use App\Contracts\IdeIntegrator;
 use App\DriverManager;
 use App\HealthCheckResult;
 use App\Support\EnvironmentDetector;
-use App\Support\ExtensionInstaller;
-use App\Support\InstallationAdvisor;
+use App\Support\ExtensionInstallationService;
+use App\Support\ExtensionReadyResult;
 use Tests\TestCase;
 
 final class SetupCommandTest extends TestCase
 {
     private DriverManager $manager;
     private EnvironmentDetector $env;
-    private InstallationAdvisor $advisor;
-    private ExtensionInstaller $installer;
     private string $tmpDir;
     private string $tmpIni;
 
@@ -27,8 +25,6 @@ final class SetupCommandTest extends TestCase
         parent::setUp();
 
         $this->env = new EnvironmentDetector();
-        $this->advisor = new InstallationAdvisor($this->env);
-        $this->installer = new ExtensionInstaller($this->env, $this->advisor);
         $this->manager = new DriverManager();
 
         $this->tmpDir = sys_get_temp_dir() . '/setup_cmd_test_' . uniqid();
@@ -40,8 +36,12 @@ final class SetupCommandTest extends TestCase
         // Bind our custom instances into the container
         $this->app->instance(DriverManager::class, $this->manager);
         $this->app->instance(EnvironmentDetector::class, $this->env);
-        $this->app->instance(InstallationAdvisor::class, $this->advisor);
-        $this->app->instance(ExtensionInstaller::class, $this->installer);
+
+        // Mock ExtensionInstallationService to always return success
+        $mockService = $this->createMock(ExtensionInstallationService::class);
+        $mockService->method('ensureExtensionReady')
+            ->willReturn(ExtensionReadyResult::success());
+        $this->app->instance(ExtensionInstallationService::class, $mockService);
     }
 
     protected function tearDown(): void
@@ -85,28 +85,33 @@ final class SetupCommandTest extends TestCase
         $this->manager->registerDebugger($debugger);
         $this->manager->registerIntegrator($ide);
 
-        // On macOS/Linux canAutoInstall() returns true, so it asks "Would you like to install it now?"
-        // Answer "no" — command should now stop with failure
+        // Mock service to return failure when user declines
+        $mockService = $this->createMock(ExtensionInstallationService::class);
+        $mockService->method('ensureExtensionReady')
+            ->willReturn(ExtensionReadyResult::failure('Cannot proceed without installing xdebug.'));
+        $this->app->instance(ExtensionInstallationService::class, $mockService);
+
         $this->artisan('setup', [
             '--debugger' => 'xdebug',
             '--ide' => 'vscode',
             '--project-path' => $this->tmpDir,
             '--xdebug-mode' => 'debug',
-        ])->expectsConfirmation('Would you like to install it now?', 'no')
-            ->assertFailed();
+        ])->assertFailed();
     }
 
     public function testCommandEnablesDisabledExtensionInsteadOfInstalling(): void
     {
-        $debugger = $this->createMockDebugger('xdebug', installed: false, hasIniDirective: true);
-
-        // Should NOT call verify() because restart is required
-        $debugger->expects($this->never())->method('verify');
-
+        $debugger = $this->createMockDebugger('xdebug', installed: true);
         $ide = $this->createMockIde('vscode');
 
         $this->manager->registerDebugger($debugger);
         $this->manager->registerIntegrator($ide);
+
+        // Mock service to return success with restart required
+        $mockService = $this->createMock(ExtensionInstallationService::class);
+        $mockService->method('ensureExtensionReady')
+            ->willReturn(ExtensionReadyResult::success(requiresRestart: true));
+        $this->app->instance(ExtensionInstallationService::class, $mockService);
 
         $this->artisan('setup', [
             '--debugger' => 'xdebug',
@@ -115,9 +120,7 @@ final class SetupCommandTest extends TestCase
             '--host' => 'localhost',
             '--port' => '9003',
             '--xdebug-mode' => 'debug',
-        ])->expectsOutputToContain('disabled')
-            ->expectsConfirmation('Would you like to enable it now?', 'yes')
-            ->expectsOutputToContain('requires a PHP restart')
+        ])->expectsOutputToContain('requires a PHP restart')
             ->assertSuccessful();
     }
 

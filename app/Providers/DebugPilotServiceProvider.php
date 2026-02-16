@@ -45,6 +45,13 @@ class DebugPilotServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(\App\Support\ExtensionInstallationService::class, function ($app) {
+            return new \App\Support\ExtensionInstallationService(
+                $app->make(ExtensionInstaller::class),
+                $app->make(InstallationAdvisor::class),
+            );
+        });
+
         // ---------------------------------------------------------------
         //  DriverManager with pre-registered drivers & integrators
         // ---------------------------------------------------------------

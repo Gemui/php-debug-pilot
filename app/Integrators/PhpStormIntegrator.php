@@ -64,7 +64,7 @@ final class PhpStormIntegrator implements IdeIntegrator
     return <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="{$name}" type="PhpRemoteDebug" factoryName="PHP Remote Debug">
+  <configuration default="false" name="{$name}" type="PhpRemoteDebugConfigurationType" factoryName="PHP Remote Debug">
     <option name="serverName" value="{$server}" />
     <option name="ide_key" value="{$ideKey}" />
     <method v="2" />
