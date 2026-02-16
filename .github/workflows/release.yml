@@ -27,13 +27,20 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --optimize-autoloader --prefer-dist
 
-      - name: Build PHAR with Laravel Zero
+      - name: Update version in config
         run: |
           # Extract version from tag (remove 'v' prefix)
           VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Building version: $VERSION"
           
-          # Build using Laravel Zero's app:build command
-          php debug-pilot app:build debug-pilot --build-version="$VERSION" --no-interaction
+          # Update version in config/app.php
+          sed -i "s/'version' => '.*'/'version' => '$VERSION'/" config/app.php
+          
+          # Verify the change
+          grep "version" config/app.php
+
+      - name: Build PHAR with Laravel Zero
+        run: php debug-pilot app:build debug-pilot --no-interaction
 
       - name: Verify PHAR exists
         run: |
