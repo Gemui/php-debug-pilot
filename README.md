@@ -36,9 +36,27 @@ PHP Debug Pilot is an enterprise-grade CLI tool that automatically detects your 
 ### Requirements
 
 - **PHP** `^8.2`
-- **Composer** (for Method 1 only)
+- **Composer** (for Method 2 & 3 only)
 
-### Method 1: Via Composer (Global)
+### Method 1: Standalone PHAR (Zero Dependencies)
+
+This is the **best method** if you don't want to manage global Composer dependencies or prefer a single executable file.
+
+Download and install the standalone PHAR:
+
+```bash
+curl -sLO https://github.com/Gemui/php-debug-pilot/releases/latest/download/debug-pilot
+chmod +x debug-pilot
+sudo mv debug-pilot /usr/local/bin/debug-pilot
+```
+
+Verify the installation:
+
+```bash
+debug-pilot --version
+```
+
+### Method 2: Via Composer (Global)
 
 Install once and use `debug-pilot` from anywhere:
 
@@ -61,24 +79,6 @@ After installing globally, you can use `debug-pilot` directly:
 debug-pilot              # Interactive setup wizard
 debug-pilot status       # Extension status table
 debug-pilot toggle xdebug
-```
-
-### Method 2: Standalone PHAR (Zero Dependencies)
-
-This is the **best method** if you don't want to manage global Composer dependencies or prefer a single executable file.
-
-Download and install the standalone PHAR:
-
-```bash
-curl -sLO https://github.com/Gemui/php-debug-pilot/releases/latest/download/debug-pilot
-chmod +x debug-pilot
-sudo mv debug-pilot /usr/local/bin/debug-pilot
-```
-
-Verify the installation:
-
-```bash
-debug-pilot --version
 ```
 
 ### Method 3: Per-Project Installation

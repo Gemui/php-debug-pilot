@@ -25,17 +25,15 @@ jobs:
           coverage: none
 
       - name: Install Composer dependencies
-        run: composer install --no-dev --optimize-autoloader --prefer-dist
+        run: composer install --optimize-autoloader --prefer-dist
 
-      - name: Build PHAR
+      - name: Build PHAR with Laravel Zero
         run: |
-          # Install Box if not already available
-          if [ ! -f box.phar ]; then
-            curl -LSs https://box-project.github.io/box2/installer.php | php
-          fi
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
           
-          # Build the PHAR using box.json configuration
-          php box.phar build
+          # Build using Laravel Zero's app:build command
+          php debug-pilot app:build debug-pilot --build-version="$VERSION" --no-interaction
 
       - name: Verify PHAR exists
         run: |
@@ -43,6 +41,9 @@ jobs:
             echo "Error: PHAR file not found at builds/debug-pilot"
             exit 1
           fi
+          
+          # Test the PHAR
+          php builds/debug-pilot --version
           ls -lh builds/debug-pilot
 
       - name: Extract version from tag
