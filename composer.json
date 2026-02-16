@@ -25,11 +25,11 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
-        "php": ">=8.2"
+        "php": ">=8.2",
+        "laravel-zero/framework": "^11.0"
     },
     "require-dev": {
         "mockery/mockery": "^1.6",
-        "laravel-zero/framework": "^11.0",
         "phpunit/phpunit": "^11.0"
     },
     "autoload": {
