@@ -12,6 +12,7 @@ vendor/
 .phpunit.result.cache
 .phpunit.cache/
 build/
+builds/
 coverage/
 .php-cs-fixer.cache
 
