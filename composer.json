@@ -1,7 +1,7 @@
 {
     "name": "gemui/php-debug-pilot",
     "description": "An extensible CLI platform to manage PHP runtime debug configurations.",
-    "type": "project",
+    "type": "library",
     "keywords": [
         "xdebug",
         "pcov",
@@ -12,13 +12,24 @@
         "laravel-zero"
     ],
     "license": "MIT",
+    "homepage": "https://github.com/Gemui/php-debug-pilot",
+    "authors": [
+        {
+            "name": "Gemui",
+            "homepage": "https://github.com/Gemui"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/Gemui/php-debug-pilot/issues",
+        "source": "https://github.com/Gemui/php-debug-pilot"
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
-        "php": ">=8.2"
+        "php": ">=8.2",
+        "laravel-zero/framework": "^11.0"
     },
     "require-dev": {
-        "laravel-zero/framework": "^11.0",
         "mockery/mockery": "^1.6",
         "phpunit/phpunit": "^11.0"
     },
