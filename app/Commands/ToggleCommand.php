@@ -50,7 +50,7 @@ final class ToggleCommand extends Command
             $result = $installationService->ensureExtensionReady(
                 $driver,
                 fn(string $line) => $this->line($line),
-                fn(string $message, bool $default) => $this->confirm($message, $default)
+                fn(string $message, bool $default) => true
             );
 
             if (!$result->success) {

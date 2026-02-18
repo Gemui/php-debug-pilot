@@ -56,32 +56,32 @@ abstract class AbstractPhpExtensionDriver implements DebuggerDriver
 
     public function isEnabled(): bool
     {
+        // Check the main php.ini first.
         $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null || !is_file($iniPath)) {
-            return false;
+        if ($iniPath !== null && is_file($iniPath)) {
+            $content = file_get_contents($iniPath);
+            if ($content !== false && $this->iniEditor->isLineEnabled($content, static::EXTENSION_PATTERN)) {
+                return true;
+            }
         }
 
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            return false;
-        }
-
-        return $this->iniEditor->isLineEnabled($content, static::EXTENSION_PATTERN);
+        // Also check additional ini files (conf.d).
+        return $this->env->findEnabledPatternInAdditionalIni(static::EXTENSION_PATTERN) !== null;
     }
 
     public function hasIniDirective(): bool
     {
+        // Check the main php.ini first.
         $iniPath = $this->env->findPhpIniPath();
-        if ($iniPath === null || !is_file($iniPath)) {
-            return false;
+        if ($iniPath !== null && is_file($iniPath)) {
+            $content = file_get_contents($iniPath);
+            if ($content !== false && $this->iniEditor->hasLine($content, static::EXTENSION_PATTERN)) {
+                return true;
+            }
         }
 
-        $content = file_get_contents($iniPath);
-        if ($content === false) {
-            return false;
-        }
-
-        return $this->iniEditor->hasLine($content, static::EXTENSION_PATTERN);
+        // Also check additional ini files (conf.d).
+        return $this->env->findPatternInAdditionalIni(static::EXTENSION_PATTERN) !== null;
     }
 
     public function setEnabled(bool $enabled): bool
@@ -103,6 +103,9 @@ abstract class AbstractPhpExtensionDriver implements DebuggerDriver
         if ($enabled) {
             if ($this->iniEditor->hasLine($content, static::EXTENSION_PATTERN)) {
                 $content = $this->iniEditor->uncommentLine($content, static::EXTENSION_PATTERN);
+            } elseif ($this->env->findPatternInAdditionalIni(static::EXTENSION_PATTERN) !== null) {
+                // Extension is loaded via a separate ini file (conf.d),
+                // do NOT append another directive to the main php.ini.
             } else {
                 $extensionName = $this->getName();
                 $directive = $this->getExtensionDirectivePrefix() . $extensionName;

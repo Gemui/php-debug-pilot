@@ -36,6 +36,21 @@ final readonly class InstallationAdvisor
     }
 
     /**
+     * Get the Dockerfile-style command (with RUN prefix) for use in
+     * Dockerfiles and printed instructions.
+     */
+    public function getDockerfileCommand(string $extensionName): string
+    {
+        $ext = strtolower($extensionName);
+
+        return match ($ext) {
+            'xdebug' => 'RUN pecl install xdebug && docker-php-ext-enable xdebug',
+            'pcov' => 'RUN pecl install pcov && docker-php-ext-enable pcov',
+            default => "RUN pecl install {$ext} && docker-php-ext-enable {$ext}",
+        };
+    }
+
+    /**
      * Get human-friendly, multi-line installation instructions.
      *
      * @param string $extensionName e.g., 'xdebug', 'pcov'
@@ -43,13 +58,17 @@ final readonly class InstallationAdvisor
     public function getInstallInstructions(string $extensionName): string
     {
         $ext = strtolower($extensionName);
-        $command = $this->getInstallCommand($ext);
         $os = $this->env->isDocker() ? 'Docker' : match ($this->env->getOs()) {
             EnvironmentDetector::OS_MACOS => 'macOS',
             EnvironmentDetector::OS_WINDOWS => 'Windows',
             default => 'Linux',
         };
         $php = $this->env->getPhpVersion();
+
+        // Use Dockerfile-style command for instructions in Docker environments
+        $command = $this->env->isDocker()
+            ? $this->getDockerfileCommand($ext)
+            : $this->getInstallCommand($ext);
 
         $lines = [
             "The '{$ext}' extension is not installed.",
@@ -109,9 +128,9 @@ final readonly class InstallationAdvisor
     private function dockerCommand(string $ext): string
     {
         return match ($ext) {
-            'xdebug' => 'RUN pecl install xdebug && docker-php-ext-enable xdebug',
-            'pcov' => 'RUN pecl install pcov && docker-php-ext-enable pcov',
-            default => "RUN pecl install {$ext} && docker-php-ext-enable {$ext}",
+            'xdebug' => 'pecl install xdebug && docker-php-ext-enable xdebug',
+            'pcov' => 'pecl install pcov && docker-php-ext-enable pcov',
+            default => "pecl install {$ext} && docker-php-ext-enable {$ext}",
         };
     }
 

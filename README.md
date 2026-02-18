@@ -4,6 +4,7 @@
 [![PHP Version](https://img.shields.io/packagist/php-v/gemui/php-debug-pilot.svg?style=flat-square)](https://packagist.org/packages/gemui/php-debug-pilot)
 [![License](https://img.shields.io/packagist/l/gemui/php-debug-pilot.svg?style=flat-square)](https://github.com/Gemui/php-debug-pilot/blob/main/LICENSE)
 [![Total Downloads](https://img.shields.io/packagist/dt/gemui/php-debug-pilot.svg?style=flat-square)](https://packagist.org/packages/gemui/php-debug-pilot)
+[![GitHub Releases Downloads](https://img.shields.io/github/downloads/Gemui/php-debug-pilot/total?style=flat-square&color=blue&label=PHAR%20Downloads)](https://github.com/Gemui/php-debug-pilot/releases)
 
 **Zero-Configuration PHP Debugging Setup.**
 
@@ -189,6 +190,77 @@ debug-pilot setup --debugger=xdebug --ide=vscode --xdebug-mode=debug,develop,cov
 | `--xdebug-mode` | Xdebug modes, comma-separated (`debug`, `develop`, `coverage`, `profile`, `trace`) | *(Prompts user with current modes pre-selected)* |
 
 ---
+
+## 🐳 Using with Docker
+
+### Generating Docker Config
+
+Use the `init-docker` command to generate ready-to-use Docker configuration snippets:
+
+```bash
+# Generate an Xdebug Dockerfile snippet (printed to stdout)
+debug-pilot init-docker
+
+# Generate for Pcov instead
+debug-pilot init-docker --debugger=pcov
+
+# Also create a docker-compose.debug.yml override file
+debug-pilot init-docker --write-compose
+```
+
+### Dockerfile Setup
+
+Add the generated snippet to your Dockerfile (after `FROM php:8.x-*`):
+
+```dockerfile
+# === PHP Debug Pilot — Xdebug Configuration ===
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+RUN echo 'xdebug.mode=debug' >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo 'xdebug.client_host=host.docker.internal' >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo 'xdebug.client_port=9003' >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo 'xdebug.start_with_request=yes' >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+```
+
+### Docker Compose Override
+
+Use the `--write-compose` flag to generate a `docker-compose.debug.yml`:
+
+```bash
+debug-pilot init-docker --write-compose
+```
+
+Then run with both files:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug.yml up
+```
+
+### Running Debug Pilot Inside a Container
+
+You can run `debug-pilot` directly inside a running container. On official PHP Docker images (`php:*`), it will **auto-install** extensions for you:
+
+```bash
+# Enter your container
+docker exec -it my-php-container bash
+
+# Install debug-pilot
+curl -sLO https://github.com/Gemui/php-debug-pilot/releases/latest/download/debug-pilot
+chmod +x debug-pilot && mv debug-pilot /usr/local/bin/
+
+# Run the interactive setup (auto-detects Docker, resolves host.docker.internal)
+debug-pilot setup
+```
+
+> 💡 **Tip:** Debug Pilot automatically detects Docker environments and resolves `host.docker.internal` as the debug client host. On Linux Docker, it discovers the gateway IP from `/proc/net/route`.
+
+### Init Docker Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-d`, `--debugger` | Debugger to configure (`xdebug`, `pcov`) | `xdebug` |
+| `--port` | Debug client port | `9003` |
+| `--write-compose` | Write `docker-compose.debug.yml` to project | `false` |
+| `-p`, `--project-path` | Project root path | Current directory |
 
 ## 🖥️ Supported Platforms
 

@@ -26,7 +26,7 @@ final readonly class ExtensionInstaller
      */
     public function canAutoInstall(): bool
     {
-        if ($this->env->isDocker()) {
+        if ($this->env->isDocker() && !$this->env->isOfficialPhpDockerImage()) {
             return false;
         }
 

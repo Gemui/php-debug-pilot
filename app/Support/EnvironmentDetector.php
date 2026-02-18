@@ -59,6 +59,19 @@ final class EnvironmentDetector
         return false;
     }
 
+    /**
+     * Whether the current Docker container is based on an official PHP image.
+     *
+     * Official PHP Docker images ship with `docker-php-ext-enable` and `pecl`,
+     * making it safe to auto-install extensions at runtime.
+     */
+    public function isOfficialPhpDockerImage(): bool
+    {
+        return $this->isDocker()
+            && (is_executable('/usr/local/bin/docker-php-ext-enable')
+                || is_executable('/usr/local/bin/pecl'));
+    }
+
     // -----------------------------------------------------------------
     //  PHP INI Path
     // -----------------------------------------------------------------
@@ -147,6 +160,73 @@ final class EnvironmentDetector
     public function isExtensionLoaded(string $name): bool
     {
         return extension_loaded($name);
+    }
+
+    // -----------------------------------------------------------------
+    //  Additional INI Files (conf.d)
+    // -----------------------------------------------------------------
+
+    /**
+     * Get the list of additional .ini files that PHP scans (conf.d).
+     *
+     * Parses the output of php_ini_scanned_files() to discover files
+     * like /etc/php/8.x/cli/conf.d/20-xdebug.ini.
+     *
+     * @return string[] Absolute paths to additional ini files.
+     */
+    public function getAdditionalIniFiles(): array
+    {
+        $scanned = php_ini_scanned_files();
+
+        if ($scanned === false || $scanned === '') {
+            return [];
+        }
+
+        // php_ini_scanned_files() returns a comma-separated list of file paths.
+        $files = array_map('trim', explode(',', $scanned));
+
+        return array_filter($files, fn(string $f) => $f !== '' && is_file($f));
+    }
+
+    /**
+     * Check if a regex pattern matches content in any additional ini file.
+     *
+     * @param  string $pattern Regex pattern (without delimiters) to search for.
+     * @return string|null     The path of the first matching file, or null.
+     */
+    public function findPatternInAdditionalIni(string $pattern): ?string
+    {
+        $regex = '#^\\s*;?\\s*' . $pattern . '#m';
+
+        foreach ($this->getAdditionalIniFiles() as $file) {
+            $content = @file_get_contents($file);
+            if ($content !== false && preg_match($regex, $content)) {
+                return $file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a regex pattern matches an uncommented (enabled) line
+     * in any additional ini file.
+     *
+     * @param  string $pattern Regex pattern (without delimiters) to search for.
+     * @return string|null     The path of the first matching file, or null.
+     */
+    public function findEnabledPatternInAdditionalIni(string $pattern): ?string
+    {
+        $regex = '#^\\s*(?!;)' . $pattern . '#m';
+
+        foreach ($this->getAdditionalIniFiles() as $file) {
+            $content = @file_get_contents($file);
+            if ($content !== false && preg_match($regex, $content)) {
+                return $file;
+            }
+        }
+
+        return null;
     }
 
     // -----------------------------------------------------------------
