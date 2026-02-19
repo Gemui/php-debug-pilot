@@ -97,9 +97,6 @@ final class SublimeIntegrator implements IdeIntegrator
     private function buildXdebugSettings(DebuggerDriver $debugger): array
     {
         return [
-            'path_mapping' => [
-                '/var/www/html' => '${project_path}',
-            ],
             'url' => 'http://localhost',
             'ide_key' => 'sublime.xdebug',
             'port' => 9003,

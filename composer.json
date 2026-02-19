@@ -26,7 +26,8 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.2",
-        "laravel-zero/framework": "^11.0"
+        "laravel-zero/framework": "^11.0",
+        "laravel-zero/phar-updater": "^1.4"
     },
     "require-dev": {
         "mockery/mockery": "^1.6",

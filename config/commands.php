@@ -77,9 +77,4 @@ return [
     'remove' => [
         // App\Commands\UnwantedCommand::class,
     ],
-
-    'updater' => [
-        'strategy' => \LaravelZero\Framework\Components\Updater\Strategy\GithubReleasesStrategy::class,
-        'repository' => 'Gemui/php-debug-pilot',
-    ],
 ];

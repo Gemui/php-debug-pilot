@@ -61,9 +61,6 @@ final class VsCodeIntegrator implements IdeIntegrator
             'type' => 'php',
             'request' => 'launch',
             'port' => 9003,
-            'pathMappings' => [
-                '/var/www/html' => '${workspaceFolder}',
-            ],
             'hostname' => '0.0.0.0',
             'xdebugSettings' => [
                 'max_data' => 65535,

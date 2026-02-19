@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="art/logo.png" alt="PHP Debug Pilot Logo" width="400">
+</p>
+
 # PHP Debug Pilot 🚀
 
 [![Latest Stable Version](https://img.shields.io/packagist/v/gemui/php-debug-pilot.svg?style=flat-square)](https://packagist.org/packages/gemui/php-debug-pilot)
