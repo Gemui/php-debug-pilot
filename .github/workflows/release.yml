@@ -29,8 +29,8 @@ jobs:
 
       - name: Update version in config
         run: |
-          # Extract version from tag (remove 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
+          # Use the full tag (e.g. v1.0.0) to match config/app.php format
+          VERSION=${GITHUB_REF#refs/tags/}
           echo "Building version: $VERSION"
           
           # Update version in config/app.php
