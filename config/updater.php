@@ -1,6 +1,6 @@
 <?php
 
-use LaravelZero\Framework\Components\Updater\Strategy\GithubReleasesStrategy;
+use App\Updater\DebugPilotStrategy;
 
 return [
 
@@ -15,6 +15,7 @@ return [
     |
     */
 
-    'strategy' => GithubReleasesStrategy::class,
+    'strategy' => DebugPilotStrategy::class,
 
 ];
+
