@@ -9,7 +9,6 @@ use App\Contracts\IdeIntegrator;
 use App\DriverManager;
 use App\Drivers\PcovDriver;
 use App\Drivers\XdebugDriver;
-use App\Integrators\PhpStormIntegrator;
 use App\Integrators\SublimeIntegrator;
 use App\Integrators\VsCodeIntegrator;
 use App\Support\EnvironmentDetector;
@@ -67,7 +66,6 @@ class DebugPilotServiceProvider extends ServiceProvider
 
             $manager
                 ->registerIntegrator(new VsCodeIntegrator())
-                ->registerIntegrator(new PhpStormIntegrator())
                 ->registerIntegrator(new SublimeIntegrator());
 
             return $manager;

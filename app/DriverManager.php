@@ -101,24 +101,6 @@ final class DriverManager
     }
 
     /**
-     * Auto-detect the IDE used in the given project path.
-     *
-     * Iterates through all registered integrators and returns the
-     * first one that reports itself as detected. Returns null if
-     * no IDE could be identified.
-     */
-    public function detectIde(string $projectPath): ?IdeIntegrator
-    {
-        foreach ($this->integrators as $integrator) {
-            if ($integrator->isDetected($projectPath)) {
-                return $integrator;
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Return only installed debugger drivers.
      *
      * @return DebuggerDriver[]

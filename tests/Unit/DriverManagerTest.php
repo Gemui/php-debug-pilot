@@ -85,16 +85,16 @@ final class DriverManagerTest extends TestCase
     public function testGetAvailableIntegratorsReturnsAll(): void
     {
         $vscode = $this->createMockIntegrator('vscode');
-        $phpstorm = $this->createMockIntegrator('phpstorm');
+        $sublime = $this->createMockIntegrator('sublime');
 
         $this->manager->registerIntegrator($vscode);
-        $this->manager->registerIntegrator($phpstorm);
+        $this->manager->registerIntegrator($sublime);
 
         $available = $this->manager->getAvailableIntegrators();
 
         $this->assertCount(2, $available);
         $this->assertSame($vscode, $available[0]);
-        $this->assertSame($phpstorm, $available[1]);
+        $this->assertSame($sublime, $available[1]);
     }
 
     public function testGetInstalledDebuggersFiltersCorrectly(): void
@@ -121,31 +121,6 @@ final class DriverManagerTest extends TestCase
 
         $this->assertCount(1, $result);
         $this->assertSame($disabled, $result[0]);
-    }
-
-    // -----------------------------------------------------------------
-    //  IDE Auto-Detection
-    // -----------------------------------------------------------------
-
-    public function testDetectIdeReturnsFirstDetected(): void
-    {
-        $vscode = $this->createMockIntegrator('vscode', isDetected: false);
-        $phpstorm = $this->createMockIntegrator('phpstorm', isDetected: true);
-
-        $this->manager->registerIntegrator($vscode);
-        $this->manager->registerIntegrator($phpstorm);
-
-        $result = $this->manager->detectIde('/some/project');
-
-        $this->assertSame($phpstorm, $result);
-    }
-
-    public function testDetectIdeReturnsNullWhenNoneDetected(): void
-    {
-        $vscode = $this->createMockIntegrator('vscode', isDetected: false);
-        $this->manager->registerIntegrator($vscode);
-
-        $this->assertNull($this->manager->detectIde('/some/project'));
     }
 
     // -----------------------------------------------------------------
@@ -178,11 +153,10 @@ final class DriverManagerTest extends TestCase
         return $mock;
     }
 
-    private function createMockIntegrator(string $name, bool $isDetected = false): IdeIntegrator
+    private function createMockIntegrator(string $name): IdeIntegrator
     {
         $mock = $this->createMock(IdeIntegrator::class);
         $mock->method('getName')->willReturn($name);
-        $mock->method('isDetected')->willReturn($isDetected);
 
         return $mock;
     }

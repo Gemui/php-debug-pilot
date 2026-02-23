@@ -20,11 +20,6 @@ final class VsCodeIntegrator implements IdeIntegrator
         return 'vscode';
     }
 
-    public function isDetected(string $projectPath): bool
-    {
-        return is_dir($projectPath . '/.vscode');
-    }
-
     public function generateConfig(DebuggerDriver $debugger, string $projectPath): void
     {
         $vscodeDir = $projectPath . '/.vscode';

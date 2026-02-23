@@ -26,24 +26,12 @@ final class VsCodeIntegratorTest extends TestCase
     }
 
     // -----------------------------------------------------------------
-    //  Identity & Detection
+    //  Identity
     // -----------------------------------------------------------------
 
     public function testGetNameReturnsVscode(): void
     {
         $this->assertSame('vscode', $this->integrator->getName());
-    }
-
-    public function testIsDetectedReturnsTrueWhenVscodeDirExists(): void
-    {
-        mkdir($this->tmpDir . '/.vscode', 0755);
-
-        $this->assertTrue($this->integrator->isDetected($this->tmpDir));
-    }
-
-    public function testIsDetectedReturnsFalseWhenNoVscodeDir(): void
-    {
-        $this->assertFalse($this->integrator->isDetected($this->tmpDir));
     }
 
     // -----------------------------------------------------------------

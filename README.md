@@ -30,8 +30,12 @@ PHP Debug Pilot is an enterprise-grade CLI tool that automatically detects your 
   - **Auto-Install** — Detects missing extensions and offers to install them for you (macOS/Linux)
 - **💻 IDE Integration** — Generates project-specific config files for:
   - **VS Code** (`.vscode/launch.json`)
-  - **PhpStorm** (`.idea/runConfigurations/XML`)
   - **Sublime Text** (`*.sublime-project`)
+  - **Planned editors** (contributions welcome!):
+    - [ ] PhpStorm
+    - [ ] Vim / Neovim
+    - [ ] Zed
+    - [ ] Athas
 - **🏥 Health Checks** — Verifies your installation and reports actionable warnings (e.g., missing extensions, wrong modes)
 
 ---
@@ -172,8 +176,8 @@ Perfect for CI/CD pipelines or automated setup scripts:
 # Configure Xdebug for VS Code
 debug-pilot setup --debugger=xdebug --ide=vscode
 
-# Configure Pcov for PhpStorm
-debug-pilot setup --debugger=pcov --ide=phpstorm
+# Configure Pcov for VS Code
+debug-pilot setup --debugger=pcov --ide=vscode
 
 # Custom host/port override
 debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --port=9000
@@ -188,7 +192,7 @@ debug-pilot setup --debugger=xdebug --ide=vscode --xdebug-mode=debug,develop,cov
 |--------|-------------|---------|
 | `-p`, `--project-path` | Root path of your project (where IDE config is written) | Current directory |
 | `-d`, `--debugger` | Debugger to configure (`xdebug`, `pcov`) | *(Prompts user)* |
-| `-i`, `--ide` | IDE to configure (`vscode`, `phpstorm`, `sublime`) | *(Auto-detects or prompts)* |
+| `-i`, `--ide` | IDE to configure (`vscode`, `sublime`) | *(Prompts user)* |
 | `--host` | Xdebug client host IP | `auto` (detects Docker host or `localhost`) |
 | `--port` | Xdebug client port | `9003` |
 | `--xdebug-mode` | Xdebug modes, comma-separated (`debug`, `develop`, `coverage`, `profile`, `trace`) | *(Prompts user with current modes pre-selected)* |
@@ -270,7 +274,7 @@ debug-pilot setup
 
 - **Operating Systems:** macOS, Linux, Windows, Docker Containers
 - **Debuggers:** Xdebug 3+, Pcov
-- **IDEs:** VS Code, PhpStorm, Sublime Text 3/4
+- **IDEs:** VS Code, Sublime Text 3/4
 
 ---
 

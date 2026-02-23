@@ -82,7 +82,7 @@ final class SetupCommand extends Command
         // ---------------------------------------------------------------
         //  3. Select IDE
         // ---------------------------------------------------------------
-        $ide = $this->selectIde($driverManager, $projectPath);
+        $ide = $this->selectIde($driverManager);
         if ($ide === null) {
             return self::FAILURE;
         }
@@ -218,7 +218,7 @@ final class SetupCommand extends Command
         return $driverManager->resolveDebugger($choice);
     }
 
-    private function selectIde(DriverManager $driverManager, string $projectPath): ?IdeIntegrator
+    private function selectIde(DriverManager $driverManager): ?IdeIntegrator
     {
         $name = $this->option('ide');
 
@@ -228,18 +228,6 @@ final class SetupCommand extends Command
             } catch (\InvalidArgumentException $e) {
                 $this->error($e->getMessage());
                 return null;
-            }
-        }
-
-        // Auto-detect
-        $detected = $driverManager->detectIde($projectPath);
-        if ($detected !== null) {
-            $confirm = $this->confirm(
-                "Detected IDE: {$detected->getName()}. Use this?",
-                true
-            );
-            if ($confirm) {
-                return $detected;
             }
         }
 

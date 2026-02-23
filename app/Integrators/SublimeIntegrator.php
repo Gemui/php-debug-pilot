@@ -20,13 +20,6 @@ final class SublimeIntegrator implements IdeIntegrator
         return 'sublime';
     }
 
-    public function isDetected(string $projectPath): bool
-    {
-        $files = glob($projectPath . '/*.sublime-project');
-
-        return $files !== false && $files !== [];
-    }
-
     public function generateConfig(DebuggerDriver $debugger, string $projectPath): void
     {
         $projectFile = $this->findOrCreateProjectFile($projectPath);

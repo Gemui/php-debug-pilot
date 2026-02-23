@@ -26,24 +26,12 @@ final class SublimeIntegratorTest extends TestCase
     }
 
     // -----------------------------------------------------------------
-    //  Identity & Detection
+    //  Identity
     // -----------------------------------------------------------------
 
     public function testGetNameReturnsSublime(): void
     {
         $this->assertSame('sublime', $this->integrator->getName());
-    }
-
-    public function testIsDetectedReturnsTrueWhenSublimeProjectExists(): void
-    {
-        file_put_contents($this->tmpDir . '/myproject.sublime-project', '{}');
-
-        $this->assertTrue($this->integrator->isDetected($this->tmpDir));
-    }
-
-    public function testIsDetectedReturnsFalseWhenNoSublimeProject(): void
-    {
-        $this->assertFalse($this->integrator->isDetected($this->tmpDir));
     }
 
     // -----------------------------------------------------------------
