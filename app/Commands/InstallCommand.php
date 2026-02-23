@@ -14,13 +14,12 @@ use LaravelZero\Framework\Commands\Command;
  *
  * Usage:
  *   php debug-pilot install xdebug
- *   php debug-pilot install pcov
  */
 final class InstallCommand extends Command
 {
-    private const KNOWN_EXTENSIONS = ['xdebug', 'pcov'];
+    private const KNOWN_EXTENSIONS = ['xdebug'];
 
-    protected $signature = 'install {extension : Extension name (xdebug, pcov)}';
+    protected $signature = 'install {extension : Extension name (xdebug)}';
 
     protected $description = 'Install a PHP debugger extension';
 

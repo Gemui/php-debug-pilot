@@ -47,16 +47,10 @@ final class InstallCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    public function testCommandShowsInstallInstructions(): void
+    public function testCommandFailsForUnknownExtensionMessage(): void
     {
-        // If pcov is NOT loaded, the command should either attempt install or show instructions
-        if (extension_loaded('pcov')) {
-            $this->markTestSkipped('Pcov is loaded — cannot test install path.');
-        }
-
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('install', ['extension' => 'pcov']);
-
-        // Install might succeed (0) or fail (1) depending on environment
-        $this->assertContains($exitCode, [0, 1]);
+        $this->artisan('install', ['extension' => 'pcov'])
+            ->expectsOutputToContain('Unknown extension')
+            ->assertFailed();
     }
 }

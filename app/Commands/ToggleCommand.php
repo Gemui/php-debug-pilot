@@ -19,11 +19,10 @@ use LaravelZero\Framework\Commands\Command;
  *
  * Usage:
  *   php debug-pilot toggle xdebug
- *   php debug-pilot toggle pcov
  */
 final class ToggleCommand extends Command
 {
-    protected $signature = 'toggle {extension : Extension name (e.g. xdebug, pcov)}';
+    protected $signature = 'toggle {extension : Extension name (e.g. xdebug)}';
 
     protected $description = 'Enable or disable a debugger extension';
 

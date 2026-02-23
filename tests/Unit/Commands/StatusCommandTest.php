@@ -23,11 +23,9 @@ final class StatusCommandTest extends TestCase
     public function testCommandDisplaysExtensionTable(): void
     {
         $this->manager->registerDebugger($this->createMockDebugger('xdebug', installed: true, enabled: true));
-        $this->manager->registerDebugger($this->createMockDebugger('pcov', installed: true, enabled: false));
 
         $this->artisan('status')
             ->expectsOutputToContain('xdebug')
-            ->expectsOutputToContain('pcov')
             ->assertSuccessful();
     }
 

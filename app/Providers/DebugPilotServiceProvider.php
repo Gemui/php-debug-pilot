@@ -7,7 +7,6 @@ namespace App\Providers;
 use App\Contracts\DebuggerDriver;
 use App\Contracts\IdeIntegrator;
 use App\DriverManager;
-use App\Drivers\PcovDriver;
 use App\Drivers\XdebugDriver;
 use App\Integrators\SublimeIntegrator;
 use App\Integrators\VsCodeIntegrator;
@@ -61,8 +60,7 @@ class DebugPilotServiceProvider extends ServiceProvider
             $manager = new DriverManager();
 
             $manager
-                ->registerDebugger(new XdebugDriver($env))
-                ->registerDebugger(new PcovDriver($env));
+                ->registerDebugger(new XdebugDriver($env));
 
             $manager
                 ->registerIntegrator(new VsCodeIntegrator())

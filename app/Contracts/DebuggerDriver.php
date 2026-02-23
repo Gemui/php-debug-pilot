@@ -18,7 +18,7 @@ interface DebuggerDriver
     /**
      * Get the unique identifier for this debugger.
      *
-     * @return string e.g., 'xdebug', 'pcov'
+     * @return string e.g., 'xdebug'
      */
     public function getName(): string;
 

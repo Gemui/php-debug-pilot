@@ -36,8 +36,11 @@ final class InstallationAdvisorTest extends TestCase
         $cmd = $this->advisor->getInstallCommand('xdebug');
         $this->assertStringContainsString('xdebug', $cmd);
 
-        $cmd = $this->advisor->getInstallCommand('pcov');
-        $this->assertStringContainsString('pcov', $cmd);
+        $cmd = $this->advisor->getInstallCommand('xdebug');
+        $this->assertStringContainsString('xdebug', $cmd);
+
+        $cmd = $this->advisor->getInstallCommand('some_other_ext');
+        $this->assertStringContainsString('some_other_ext', $cmd);
     }
 
     public function testGetInstallCommandHandlesUnknownExtension(): void
@@ -69,7 +72,7 @@ final class InstallationAdvisorTest extends TestCase
 
     public function testGetInstallInstructionsContainsPhpVersion(): void
     {
-        $instructions = $this->advisor->getInstallInstructions('pcov');
+        $instructions = $this->advisor->getInstallInstructions('xdebug');
 
         $this->assertStringContainsString(PHP_VERSION, $instructions);
     }

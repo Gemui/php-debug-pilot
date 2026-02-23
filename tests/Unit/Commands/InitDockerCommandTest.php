@@ -31,14 +31,6 @@ final class InitDockerCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    public function testCommandOutputsDockerfileSnippetForPcov(): void
-    {
-        $this->artisan('init-docker', ['--debugger' => 'pcov'])
-            ->expectsOutputToContain('Pcov Configuration')
-            ->expectsOutputToContain('pecl install pcov')
-            ->assertSuccessful();
-    }
-
     public function testCommandFailsForUnknownDebugger(): void
     {
         $this->artisan('init-docker', ['--debugger' => 'foobar'])
@@ -74,33 +66,6 @@ final class InitDockerCommandTest extends TestCase
             $this->assertStringContainsString('host.docker.internal', $content);
         } finally {
             // Cleanup
-            if (is_file($tmpDir . '/docker-compose.debug.yml')) {
-                unlink($tmpDir . '/docker-compose.debug.yml');
-            }
-            if (is_dir($tmpDir)) {
-                rmdir($tmpDir);
-            }
-        }
-    }
-
-    public function testComposeContentForPcov(): void
-    {
-        $tmpDir = sys_get_temp_dir() . '/debug-pilot-test-' . uniqid();
-        mkdir($tmpDir, 0755, true);
-
-        try {
-            $this->artisan('init-docker', [
-                '--debugger' => 'pcov',
-                '--write-compose' => true,
-                '--project-path' => $tmpDir,
-            ])->assertSuccessful();
-
-            $composeFile = $tmpDir . '/docker-compose.debug.yml';
-            $this->assertFileExists($composeFile);
-
-            $content = file_get_contents($composeFile);
-            $this->assertStringContainsString('PCOV_ENABLED', $content);
-        } finally {
             if (is_file($tmpDir . '/docker-compose.debug.yml')) {
                 unlink($tmpDir . '/docker-compose.debug.yml');
             }

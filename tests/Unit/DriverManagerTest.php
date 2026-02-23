@@ -70,16 +70,16 @@ final class DriverManagerTest extends TestCase
     public function testGetAvailableDebuggersReturnsAll(): void
     {
         $xdebug = $this->createMockDebugger('xdebug');
-        $pcov = $this->createMockDebugger('pcov');
+        $other = $this->createMockDebugger('other');
 
         $this->manager->registerDebugger($xdebug);
-        $this->manager->registerDebugger($pcov);
+        $this->manager->registerDebugger($other);
 
         $available = $this->manager->getAvailableDebuggers();
 
         $this->assertCount(2, $available);
         $this->assertSame($xdebug, $available[0]);
-        $this->assertSame($pcov, $available[1]);
+        $this->assertSame($other, $available[1]);
     }
 
     public function testGetAvailableIntegratorsReturnsAll(): void
@@ -100,7 +100,7 @@ final class DriverManagerTest extends TestCase
     public function testGetInstalledDebuggersFiltersCorrectly(): void
     {
         $installed = $this->createMockDebugger('xdebug', isInstalled: true);
-        $notInstalled = $this->createMockDebugger('pcov', isInstalled: false, hasIniDirective: false);
+        $notInstalled = $this->createMockDebugger('other', isInstalled: false, hasIniDirective: false);
 
         $this->manager->registerDebugger($installed);
         $this->manager->registerDebugger($notInstalled);

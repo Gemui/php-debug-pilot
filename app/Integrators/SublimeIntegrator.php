@@ -11,7 +11,7 @@ use App\Contracts\IdeIntegrator;
  * Sublime Text IDE integrator.
  *
  * Creates or updates a `*.sublime-project` file with
- * Xdebug/Pcov debug settings.
+ * Creates or updates a `*.sublime-project` file with Xdebug debug settings.
  */
 final class SublimeIntegrator implements IdeIntegrator
 {
@@ -97,6 +97,7 @@ final class SublimeIntegrator implements IdeIntegrator
             'close_on_stop' => true,
             'debug' => true,
             'debugger_engine' => $debugger->getName(),
+            'path_mapping' => [],
         ];
     }
 }

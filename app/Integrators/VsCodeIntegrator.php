@@ -11,7 +11,7 @@ use App\Contracts\IdeIntegrator;
  * VS Code IDE integrator.
  *
  * Generates or merges a `.vscode/launch.json` with
- * a "Listen for Xdebug/Pcov" debug configuration.
+ * a "Listen for Xdebug" debug configuration.
  */
 final class VsCodeIntegrator implements IdeIntegrator
 {

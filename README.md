@@ -12,7 +12,7 @@
 
 **Zero-Configuration PHP Debugging Setup.**
 
-PHP Debug Pilot is an enterprise-grade CLI tool that automatically detects your environment, installs and configures Xdebug or Pcov, and generates ready-to-use launch configurations for your favorite IDE. Stop wrestling with `php.ini` and port mappings — just fly.
+PHP Debug Pilot is an enterprise-grade CLI tool that automatically detects your environment, installs and configures Xdebug, and generates ready-to-use launch configurations for your favorite IDE. Stop wrestling with `php.ini` and port mappings — just fly.
 
 ---
 
@@ -21,11 +21,9 @@ PHP Debug Pilot is an enterprise-grade CLI tool that automatically detects your 
 - **🔍 Environment Detection** — Automatically detects OS (macOS, Linux, Windows), Docker containers, and `php.ini` location
 - **⚙️ Smart Configuration**
   - Configures **Xdebug** for step debugging (mode `debug`, auto-client-host)
-  - Configures **Pcov** for fast coverage
-  - Handles conflicts (e.g., disables Xdebug coverage when Pcov is active)
   - Idempotent — runs safely multiple times without duplicating config blocks
 - **📦 Extension Management**
-  - **Check Status** — View installed/enabled status of Xdebug and Pcov at a glance
+  - **Check Status** — View installed/enabled status of Xdebug at a glance
   - **Toggle** — Enable or disable extensions with a single command
   - **Auto-Install** — Detects missing extensions and offers to install them for you (macOS/Linux)
 - **💻 IDE Integration** — Generates project-specific config files for:
@@ -106,6 +104,30 @@ Then use it via Composer's local bin:
 
 ---
 
+## 🔄 Updating
+
+### Method 1: PHAR
+
+The PHAR binary includes a built-in self-update command that downloads the latest release from GitHub:
+
+```bash
+debug-pilot self-update
+```
+
+### Method 2: Global Composer
+
+```bash
+composer global update gemui/php-debug-pilot
+```
+
+### Method 3: Per-Project
+
+```bash
+composer update gemui/php-debug-pilot
+```
+
+---
+
 ## 🚀 Usage
 
 ### Interactive Setup
@@ -118,7 +140,7 @@ debug-pilot
 
 The tool will:
 1. 🔍 Detect your environment
-2. 🐛 Ask which debugger you want to configure (Xdebug / Pcov)
+2. 🐛 Ask which debugger you want to configure (Xdebug)
 3. 💻 Ask which IDE you use
 4. ✅ Write the configuration and verify the setup
 
@@ -136,7 +158,6 @@ debug-pilot status
  │ Driver  │ Installed │ Enabled │
  ├─────────┼───────────┼─────────┤
  │ xdebug  │ ✅        │ ✅      │
- │ pcov    │ ✅        │ ❌      │
  └─────────┴───────────┴─────────┘
 ```
 
@@ -147,9 +168,6 @@ Toggle extension state without editing `php.ini` manually:
 ```bash
 # Enable Xdebug
 debug-pilot toggle xdebug
-
-# Enable Pcov (and auto-disable Xdebug coverage)
-debug-pilot toggle pcov
 ```
 
 > 💡 **Tip:** If the extension is not installed, the tool will offer to install it for you automatically (on supported systems).
@@ -161,9 +179,6 @@ Manually install a specific extension:
 ```bash
 # Install Xdebug
 debug-pilot install xdebug
-
-# Install Pcov
-debug-pilot install pcov
 ```
 
 > 🔧 The tool will automatically detect if auto-installation is supported on your system and run the appropriate installation command. If auto-installation is not available (e.g., Docker, Windows), it will display manual installation instructions.
@@ -175,9 +190,6 @@ Perfect for CI/CD pipelines or automated setup scripts:
 ```bash
 # Configure Xdebug for VS Code
 debug-pilot setup --debugger=xdebug --ide=vscode
-
-# Configure Pcov for VS Code
-debug-pilot setup --debugger=pcov --ide=vscode
 
 # Custom host/port override
 debug-pilot setup --debugger=xdebug --ide=vscode --host=192.168.1.5 --port=9000
@@ -191,7 +203,7 @@ debug-pilot setup --debugger=xdebug --ide=vscode --xdebug-mode=debug,develop,cov
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-p`, `--project-path` | Root path of your project (where IDE config is written) | Current directory |
-| `-d`, `--debugger` | Debugger to configure (`xdebug`, `pcov`) | *(Prompts user)* |
+| `-d`, `--debugger` | Debugger to configure (`xdebug`) | *(Prompts user)* |
 | `-i`, `--ide` | IDE to configure (`vscode`, `sublime`) | *(Prompts user)* |
 | `--host` | Xdebug client host IP | `auto` (detects Docker host or `localhost`) |
 | `--port` | Xdebug client port | `9003` |
@@ -208,9 +220,6 @@ Use the `init-docker` command to generate ready-to-use Docker configuration snip
 ```bash
 # Generate an Xdebug Dockerfile snippet (printed to stdout)
 debug-pilot init-docker
-
-# Generate for Pcov instead
-debug-pilot init-docker --debugger=pcov
 
 # Also create a docker-compose.debug.yml override file
 debug-pilot init-docker --write-compose
@@ -265,7 +274,7 @@ debug-pilot setup
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-d`, `--debugger` | Debugger to configure (`xdebug`, `pcov`) | `xdebug` |
+| `-d`, `--debugger` | Debugger to configure (`xdebug`) | `xdebug` |
 | `--port` | Debug client port | `9003` |
 | `--write-compose` | Write `docker-compose.debug.yml` to project | `false` |
 | `-p`, `--project-path` | Project root path | Current directory |
@@ -273,7 +282,7 @@ debug-pilot setup
 ## 🖥️ Supported Platforms
 
 - **Operating Systems:** macOS, Linux, Windows, Docker Containers
-- **Debuggers:** Xdebug 3+, Pcov
+- **Debuggers:** Xdebug 3+
 - **IDEs:** VS Code, Sublime Text 3/4
 
 ---

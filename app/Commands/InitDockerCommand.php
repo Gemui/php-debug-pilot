@@ -15,20 +15,19 @@ use LaravelZero\Framework\Commands\Command;
  *
  * Usage:
  *   debug-pilot init-docker
- *   debug-pilot init-docker --debugger=pcov
  *   debug-pilot init-docker --write-compose
  */
 final class InitDockerCommand extends Command
 {
     protected $signature = 'init-docker
-        {--d|debugger=xdebug : Debugger to configure (xdebug, pcov)}
+        {--d|debugger=xdebug : Debugger to configure (xdebug)}
         {--port=9003 : Debug client port}
         {--write-compose : Write docker-compose.debug.yml to project}
         {--p|project-path= : Project root path}';
 
     protected $description = 'Generate Docker configuration snippets for PHP debugging';
 
-    private const KNOWN_DEBUGGERS = ['xdebug', 'pcov'];
+    private const KNOWN_DEBUGGERS = ['xdebug'];
 
     public function handle(InstallationAdvisor $advisor): int
     {
@@ -122,8 +121,6 @@ final class InitDockerCommand extends Command
         if ($debugger === 'xdebug') {
             $lines[] = '      XDEBUG_MODE: "debug"';
             $lines[] = "      XDEBUG_CONFIG: \"client_host=host.docker.internal client_port={$port}\"";
-        } elseif ($debugger === 'pcov') {
-            $lines[] = '      PCOV_ENABLED: "1"';
         }
 
         $lines[] = '    extra_hosts:';
@@ -137,7 +134,6 @@ final class InitDockerCommand extends Command
     {
         return match ($debugger) {
             'xdebug' => 'Xdebug',
-            'pcov' => 'Pcov',
             default => ucfirst($debugger),
         };
     }

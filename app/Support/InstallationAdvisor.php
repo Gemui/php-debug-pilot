@@ -18,7 +18,7 @@ final readonly class InstallationAdvisor
     /**
      * Get the shell command to install a PHP extension.
      *
-     * @param string $extensionName e.g., 'xdebug', 'pcov'
+     * @param string $extensionName e.g., 'xdebug'
      */
     public function getInstallCommand(string $extensionName): string
     {
@@ -45,7 +45,6 @@ final readonly class InstallationAdvisor
 
         return match ($ext) {
             'xdebug' => 'RUN pecl install xdebug && docker-php-ext-enable xdebug',
-            'pcov' => 'RUN pecl install pcov && docker-php-ext-enable pcov',
             default => "RUN pecl install {$ext} && docker-php-ext-enable {$ext}",
         };
     }
@@ -53,7 +52,7 @@ final readonly class InstallationAdvisor
     /**
      * Get human-friendly, multi-line installation instructions.
      *
-     * @param string $extensionName e.g., 'xdebug', 'pcov'
+     * @param string $extensionName e.g., 'xdebug'
      */
     public function getInstallInstructions(string $extensionName): string
     {
@@ -92,7 +91,6 @@ final readonly class InstallationAdvisor
     {
         return match ($ext) {
             'xdebug' => 'pecl install xdebug',
-            'pcov' => 'pecl install pcov',
             default => "pecl install {$ext}",
         };
     }
@@ -104,12 +102,10 @@ final readonly class InstallationAdvisor
         return match ($packageManager) {
             'apt' => match ($ext) {
                     'xdebug' => 'sudo apt install -y php-xdebug',
-                    'pcov' => 'sudo apt install -y php-pcov',
                     default => "sudo apt install -y php-{$ext}",
                 },
             'yum', 'dnf' => match ($ext) {
                     'xdebug' => "sudo {$packageManager} install -y php-pecl-xdebug",
-                    'pcov' => "sudo {$packageManager} install -y php-pecl-pcov",
                     default => "sudo {$packageManager} install -y php-pecl-{$ext}",
                 },
             default => "pecl install {$ext}",
@@ -120,7 +116,6 @@ final readonly class InstallationAdvisor
     {
         return match ($ext) {
             'xdebug' => 'Download the correct DLL from https://xdebug.org/wizard and add it to php.ini',
-            'pcov' => 'pecl install pcov',
             default => "pecl install {$ext}",
         };
     }
@@ -129,7 +124,6 @@ final readonly class InstallationAdvisor
     {
         return match ($ext) {
             'xdebug' => 'pecl install xdebug && docker-php-ext-enable xdebug',
-            'pcov' => 'pecl install pcov && docker-php-ext-enable pcov',
             default => "pecl install {$ext} && docker-php-ext-enable {$ext}",
         };
     }
