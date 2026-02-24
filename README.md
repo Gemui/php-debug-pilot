@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="art/logo.png" alt="PHP Debug Pilot Logo" width="400">
+  <img src="art/logo.png" alt="PHP Debug Pilot Logo" >
 </p>
 
 # PHP Debug Pilot 🚀
